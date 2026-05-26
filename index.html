@@ -525,6 +525,7 @@ function gbInitThree() {
     gbAnimate();
   } catch(e) {
     console.error('Gift Three.js 初始化失败:', e);
+    window.__gbInitError = e.message + ' | ' + (e.stack ? e.stack.split('\n').slice(0,3).join(' >> ') : '');
     // 清理可能的半初始化状态
     scene = null; renderer = null; camera = null; composer = null;
   }
