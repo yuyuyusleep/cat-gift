@@ -525,6 +525,8 @@ function gbInitThree() {
     gbAnimate();
   } catch(e) {
     console.error('Gift Three.js 初始化失败:', e);
+    // 清理可能的半初始化状态
+    scene = null; renderer = null; camera = null; composer = null;
   }
 }
 
@@ -687,7 +689,7 @@ function playHeartAnimation() {
         rafId = null;
         return;
       }
-      if (stage === 6 && t >= video.duration - 0.05) {
+      if (stage === 6 && (t >= (video.duration || 6.2) - 0.1)) {
         // 礼物播完 → 进入体验
         video.pause();
         stage = 7;
@@ -759,6 +761,13 @@ window.gbStartExperience = function() {
   const ss = document.getElementById('gb-start-screen');
   ss.style.opacity = 0;
   setTimeout(() => { ss.style.display = 'none'; }, 1200);
+
+  // 如果 Three.js 初始化失败（scene 不存在），重新尝试
+  if (!scene) {
+    console.warn('scene 不存在，重新初始化 Three.js...');
+    gbInitThree();
+    if (!scene) { console.error('Three.js 重新初始化仍然失败'); return; }
+  }
 
   gbBgm.volume = 0.5;
   gbBgm.play().then(() => {
