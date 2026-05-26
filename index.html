@@ -248,7 +248,7 @@ html, body {
       <div class="gb-gesture-item active" data-gesture="fist"><span class="gb-highlight">✊ 握拳</span> 聚合水晶塔</div>
       <div class="gb-gesture-item" data-gesture="open"><span class="gb-highlight">🖐 张开五指</span> 散开星云</div>
       <div class="gb-gesture-item" data-gesture="swipe"><span class="gb-highlight">👋 挥动手掌</span> 旋转视角</div>
-      <div class="gb-gesture-item" data-gesture="pinch"><span class="gb-highlight">🤏 捏合手指</span> 查看照片</div>
+      <div class="gb-gesture-item" data-gesture="pinch"><span class="gb-highlight">🤏 捏合手指</span> 查看信封</div>
     </div>
   </div>
 </div>
@@ -827,12 +827,14 @@ window.gbStartExperience = function() {
 function gbFinishIntro() {
   // 生成信封（每个信封对应一个人的祝福）
   const blessings = [
-    { from: '小明', message: '生日快乐！愿你每天都开心，事事顺心！🎂' },
-    { from: '小红', message: '祝你生日快乐，新的一岁万事如意，心想事成！🌟' },
-    { from: '小华', message: '生日快乐！愿你永远年轻漂亮，未来可期！✨' },
-    { from: '小李', message: '祝你生日快乐！希望你每天都有好心情！🎉' },
-    { from: '小王', message: '生日快乐！愿所有美好都如期而至！🎁' },
-    { from: '小张', message: '祝你新的一岁，健康平安，前程似锦！🌈' }
+    { from: '王奕', message: '祝姐生日快乐！感恩一路指引，愿带领我们再创辉煌！🎂' },
+    { from: '郭枫', message: '小隽生日快乐！祝每天从容自洽、喜乐无忧~🌟' },
+    { from: '李健祺', message: '愿心有山海，静而无忧，岁岁安～✨' },
+    { from: '石震', message: '小隽生日快乐！愿生活明朗，喜乐相随，健康好运每一天！🎉' },
+    { from: '张雨泓', message: '祝小隽一直温柔坚定、自洽、自由，步履生风！🌈' },
+    { from: '陈琦', message: '理智与智慧并存的女性榜样，愿永远自在如风🍃' },
+    { from: '刘娜', message: '明媚又迷人的小隽，愿你永远闪闪发光、丰盈自在。💫' },
+    { from: '灵境', message: '愿智慧从容如你，愿小隽姐永远随心所向，优雅常在。🌸' }
   ];
   blessings.forEach((b, i) => { gbAddEnvelopeMesh(b, i, blessings.length); });
 
@@ -1402,9 +1404,9 @@ function gbAddEnvelopeMesh(blessing, idx, total) {
   // 信封主体（长方形）
   const bodyGeo = new THREE.PlaneGeometry(8, 6);
   const bodyMat = new THREE.MeshPhysicalMaterial({
-    color: 0xfff8e7, side: THREE.DoubleSide,
-    roughness: 0.8, metalness: 0.0,
-    emissive: 0xffeecc, emissiveIntensity: 0.2
+    color: 0xd4c5a0, side: THREE.DoubleSide,
+    roughness: 0.9, metalness: 0.0,
+    emissive: 0x332200, emissiveIntensity: 0.05
   });
   const body = new THREE.Mesh(bodyGeo, bodyMat);
   envGroup.add(body);
@@ -1414,9 +1416,9 @@ function gbAddEnvelopeMesh(blessing, idx, total) {
   flapShape.moveTo(-4, 0); flapShape.lineTo(0, -3); flapShape.lineTo(4, 0); flapShape.closePath();
   const flapGeo = new THREE.ShapeGeometry(flapShape);
   const flapMat = new THREE.MeshPhysicalMaterial({
-    color: 0xffe4b5, side: THREE.DoubleSide,
-    roughness: 0.7, metalness: 0.1,
-    emissive: 0xffcc88, emissiveIntensity: 0.15
+    color: 0xc4a882, side: THREE.DoubleSide,
+    roughness: 0.85, metalness: 0.0,
+    emissive: 0x221100, emissiveIntensity: 0.03
   });
   const flap = new THREE.Mesh(flapGeo, flapMat);
   flap.position.set(0, 3, 0.05);
@@ -1450,8 +1452,8 @@ function gbAddEnvelopeMesh(blessing, idx, total) {
   label.position.set(0, -1.5, 0.05);
   envGroup.add(label);
 
-  // 外发光边框
-  const frameMat = new THREE.MeshBasicMaterial({ color: 0x4ade80, transparent: true, opacity: 0.4 });
+  // 外发光边框（柔和绿光）
+  const frameMat = new THREE.MeshBasicMaterial({ color: 0x4ade80, transparent: true, opacity: 0.15 });
   const frame = new THREE.Mesh(new THREE.PlaneGeometry(8.8, 6.8), frameMat);
   frame.position.z = -0.1;
   frame.renderOrder = 998;
@@ -1459,10 +1461,11 @@ function gbAddEnvelopeMesh(blessing, idx, total) {
 
   envGroup.renderOrder = 999;
 
-  // 定位（和原来照片一样的布局）
-  const layer = idx < 3 ? 0 : 1;
-  const angleIdx = idx < 3 ? idx : idx - 3;
-  const theta = (angleIdx / 3) * Math.PI * 2 + (layer * Math.PI / 3);
+  // 定位（8个信封均匀分布在两层）
+  const layer = idx < 4 ? 0 : 1;
+  const angleIdx = idx < 4 ? idx : idx - 4;
+  const countInLayer = idx < 4 ? 4 : 4;
+  const theta = (angleIdx / countInLayer) * Math.PI * 2 + (layer * Math.PI / 4);
   const tier = CONFIG.tiers[layer];
   const r = tier.radius + 14;
   const yPos = tier.yBottom + tier.height * 0.5;
