@@ -762,12 +762,23 @@ window.gbStartExperience = function() {
   ss.style.opacity = 0;
   setTimeout(() => { ss.style.display = 'none'; }, 1200);
 
-  // 如果 Three.js 初始化失败（scene 不存在），重新尝试
+  // 延迟初始化 Three.js（确保在用户交互后才创建 WebGL context）
   if (!scene) {
-    console.warn('scene 不存在，重新初始化 Three.js...');
     gbInitThree();
-    if (!scene) { console.error('Three.js 重新初始化仍然失败'); return; }
+    // 绑定信封点击事件
+    if (renderer) {
+      gbRaycaster = new THREE.Raycaster();
+      gbMouse = new THREE.Vector2();
+      renderer.domElement.addEventListener('click', gbOnEnvelopeClick);
+      renderer.domElement.addEventListener('touchend', (e) => {
+        if (e.changedTouches.length > 0) {
+          const touch = e.changedTouches[0];
+          gbOnEnvelopeClick({ clientX: touch.clientX, clientY: touch.clientY });
+        }
+      });
+    }
   }
+  if (!scene) { console.error('Three.js 初始化失败，无法继续'); return; }
 
   gbBgm.volume = 0.5;
   gbBgm.play().then(() => {
@@ -1529,21 +1540,7 @@ function gbShowBlessing(blessing) {
   document.body.appendChild(popup);
 }
 
-// ── 直接启动 Three.js（独立页面，无需 waitForInit）──
-gbInitThree();
-
-// 初始化后绑定信封点击事件
-gbRaycaster = new THREE.Raycaster();
-gbMouse = new THREE.Vector2();
-if (renderer) {
-  renderer.domElement.addEventListener('click', gbOnEnvelopeClick);
-  renderer.domElement.addEventListener('touchend', (e) => {
-    if (e.changedTouches.length > 0) {
-      const touch = e.changedTouches[0];
-      gbOnEnvelopeClick({ clientX: touch.clientX, clientY: touch.clientY });
-    }
-  });
-}
+// Three.js 延迟到 gbStartExperience 中初始化，避免页面加载时就占用 WebGL 资源
 </script>
 </body>
 </html>
