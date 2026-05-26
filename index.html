@@ -248,7 +248,7 @@ html, body {
       <div class="gb-gesture-item active" data-gesture="fist"><span class="gb-highlight">✊ 握拳</span> 聚合水晶塔</div>
       <div class="gb-gesture-item" data-gesture="open"><span class="gb-highlight">🖐 张开五指</span> 散开星云</div>
       <div class="gb-gesture-item" data-gesture="swipe"><span class="gb-highlight">👋 挥动手掌</span> 旋转视角</div>
-      <div class="gb-gesture-item" data-gesture="pinch"><span class="gb-highlight">🤏 捏合手指</span> 查看信封</div>
+      <div class="gb-gesture-item" data-gesture="pinch"><span class="gb-highlight">🤏 捏合手指</span> 查看照片</div>
     </div>
   </div>
 </div>
@@ -827,14 +827,14 @@ window.gbStartExperience = function() {
 function gbFinishIntro() {
   // 生成信封（每个信封对应一个人的祝福）
   const blessings = [
-    { from: '王奕', message: '祝姐生日快乐！感恩一路指引，愿带领我们再创辉煌！🎂' },
-    { from: '郭枫', message: '小隽生日快乐！祝每天从容自洽、喜乐无忧~🌟' },
-    { from: '李健祺', message: '愿心有山海，静而无忧，岁岁安～✨' },
-    { from: '石震', message: '小隽生日快乐！愿生活明朗，喜乐相随，健康好运每一天！🎉' },
-    { from: '张雨泓', message: '祝小隽一直温柔坚定、自洽、自由，步履生风！🌈' },
-    { from: '陈琦', message: '理智与智慧并存的女性榜样，愿永远自在如风🍃' },
-    { from: '刘娜', message: '明媚又迷人的小隽，愿你永远闪闪发光、丰盈自在。💫' },
-    { from: '灵境', message: '愿智慧从容如你，愿小隽姐永远随心所向，优雅常在。🌸' }
+    { from: '王奕', message: '祝姐生日快乐！感恩一路指引，愿带领我们再创辉煌！', photo: 'photo-1.png' },
+    { from: '郭枫', message: '小隽姐生日快乐！祝每天从容自洽、喜乐无忧~', photo: 'photo-2.png' },
+    { from: '李健祺', message: '愿心有山海，静而无忧，岁岁安～', photo: 'photo-3.png' },
+    { from: '石震', message: '小隽姐生日快乐！愿生活明朗，喜乐相随，健康好运每一天！', photo: 'photo-4.png' },
+    { from: '张雨泓', message: '祝小隽姐一直温柔坚定、自洽、自由，步履生风！', photo: 'photo-5.png' },
+    { from: '陈琦', message: '理智与智慧并存的女性榜样，愿永远自在如风', photo: 'photo-6.png' },
+    { from: '刘娜', message: '明媚又迷人的小隽，愿你永远闪闪发光、丰盈自在', photo: 'photo-7.png' },
+    { from: '周俊', message: '愿智慧从容如你，愿小隽姐永远随心所向，优雅常在', photo: 'photo-8.png' }
   ];
   blessings.forEach((b, i) => { gbAddEnvelopeMesh(b, i, blessings.length); });
 
@@ -1398,89 +1398,62 @@ document.getElementById('gb-file-input').addEventListener('change', function(e) 
 });
 
 function gbAddEnvelopeMesh(blessing, idx, total) {
-  // 创建信封形状的 mesh
-  const envGroup = new THREE.Group();
+  // 创建照片卡片
+  const cardGroup = new THREE.Group();
 
-  // 信封主体（长方形）
-  const bodyGeo = new THREE.PlaneGeometry(8, 6);
-  const bodyMat = new THREE.MeshPhysicalMaterial({
-    color: 0xd4c5a0, side: THREE.DoubleSide,
-    roughness: 0.9, metalness: 0.0,
-    emissive: 0x332200, emissiveIntensity: 0.05
+  // 加载头像图片作为纹理
+  const texLoader = new THREE.TextureLoader();
+  const photoTex = texLoader.load(blessing.photo);
+  photoTex.colorSpace = THREE.SRGBColorSpace;
+
+  // 照片主体（正方形）
+  const photoGeo = new THREE.PlaneGeometry(7, 7);
+  const photoMat = new THREE.MeshBasicMaterial({
+    map: photoTex, side: THREE.DoubleSide, transparent: true
   });
-  const body = new THREE.Mesh(bodyGeo, bodyMat);
-  envGroup.add(body);
+  const photoPlane = new THREE.Mesh(photoGeo, photoMat);
+  cardGroup.add(photoPlane);
 
-  // 信封三角形盖子
-  const flapShape = new THREE.Shape();
-  flapShape.moveTo(-4, 0); flapShape.lineTo(0, -3); flapShape.lineTo(4, 0); flapShape.closePath();
-  const flapGeo = new THREE.ShapeGeometry(flapShape);
-  const flapMat = new THREE.MeshPhysicalMaterial({
-    color: 0xc4a882, side: THREE.DoubleSide,
-    roughness: 0.85, metalness: 0.0,
-    emissive: 0x221100, emissiveIntensity: 0.03
-  });
-  const flap = new THREE.Mesh(flapGeo, flapMat);
-  flap.position.set(0, 3, 0.05);
-  envGroup.add(flap);
-
-  // 爱心封印
-  const heartShape = new THREE.Shape();
-  heartShape.moveTo(0, -0.3);
-  heartShape.bezierCurveTo(0, -0.6, -0.6, -0.6, -0.6, -0.2);
-  heartShape.bezierCurveTo(-0.6, 0.2, 0, 0.5, 0, 0.8);
-  heartShape.bezierCurveTo(0, 0.5, 0.6, 0.2, 0.6, -0.2);
-  heartShape.bezierCurveTo(0.6, -0.6, 0, -0.6, 0, -0.3);
-  const heartGeo = new THREE.ShapeGeometry(heartShape);
-  const heartMat = new THREE.MeshBasicMaterial({ color: 0xff4466, side: THREE.DoubleSide });
-  const heart = new THREE.Mesh(heartGeo, heartMat);
-  heart.position.set(0, 2.2, 0.1);
-  heart.scale.set(1.2, 1.2, 1);
-  envGroup.add(heart);
-
-  // "From: xxx" 文字用 canvas 纹理
+  // 底部名字标签
   const canvas = document.createElement('canvas');
   canvas.width = 256; canvas.height = 64;
   const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#8B4513';
-  ctx.font = 'bold 28px PingFang SC, Microsoft YaHei, sans-serif';
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.font = 'bold 30px PingFang SC, Microsoft YaHei, sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText('From: ' + blessing.from, 128, 40);
+  ctx.fillText(blessing.from, 128, 42);
   const labelTex = new THREE.CanvasTexture(canvas);
   const labelMat = new THREE.MeshBasicMaterial({ map: labelTex, transparent: true, side: THREE.DoubleSide });
   const label = new THREE.Mesh(new THREE.PlaneGeometry(5, 1.2), labelMat);
-  label.position.set(0, -1.5, 0.05);
-  envGroup.add(label);
+  label.position.set(0, -4.5, 0.05);
+  cardGroup.add(label);
 
-  // 外发光边框（柔和绿光）
-  const frameMat = new THREE.MeshBasicMaterial({ color: 0x4ade80, transparent: true, opacity: 0.15 });
-  const frame = new THREE.Mesh(new THREE.PlaneGeometry(8.8, 6.8), frameMat);
+  // 柔和边框光晕
+  const frameMat = new THREE.MeshBasicMaterial({ color: 0x4ade80, transparent: true, opacity: 0.12 });
+  const frame = new THREE.Mesh(new THREE.PlaneGeometry(7.6, 7.6), frameMat);
   frame.position.z = -0.1;
-  frame.renderOrder = 998;
-  envGroup.add(frame);
+  cardGroup.add(frame);
 
-  envGroup.renderOrder = 999;
-
-  // 定位（8个信封均匀分布在两层）
+  // 定位（8张照片均匀分布在两层）
   const layer = idx < 4 ? 0 : 1;
   const angleIdx = idx < 4 ? idx : idx - 4;
-  const countInLayer = idx < 4 ? 4 : 4;
+  const countInLayer = 4;
   const theta = (angleIdx / countInLayer) * Math.PI * 2 + (layer * Math.PI / 4);
   const tier = CONFIG.tiers[layer];
   const r = tier.radius + 14;
   const yPos = tier.yBottom + tier.height * 0.5;
   const treePos = new THREE.Vector3(r * Math.cos(theta), yPos, r * Math.sin(theta));
 
-  envGroup.userData = {
+  cardGroup.userData = {
     treePos, scatterPos: randomSpherePoint(50),
     baseRot: new THREE.Euler(0, 0, 0),
     blessing: blessing
   };
-  envGroup.position.copy(treePos);
-  envGroup.lookAt(0, yPos, 0);
-  envGroup.rotateY(Math.PI);
-  photoMeshes.push(envGroup);
-  mainGroup.add(envGroup);
+  cardGroup.position.copy(treePos);
+  cardGroup.lookAt(0, yPos, 0);
+  cardGroup.rotateY(Math.PI);
+  photoMeshes.push(cardGroup);
+  mainGroup.add(cardGroup);
 }
 
 // ── 信封点击交互 ──
@@ -1530,7 +1503,7 @@ function gbShowBlessing(blessing) {
       @keyframes gbPopIn { to { transform: translate(-50%, -50%) scale(1); } }
       @keyframes gbPopOut { to { transform: translate(-50%, -50%) scale(0); opacity: 0; } }
     </style>
-    <div style="font-size:40px; margin-bottom:15px;">💌</div>
+    <div style="margin-bottom:15px;"><img src="${blessing.photo}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:2px solid rgba(74,222,128,0.5);" /></div>
     <div style="color:rgba(74,222,128,0.9); font-size:14px; margin-bottom:12px; letter-spacing:2px;">来自 ${blessing.from} 的祝福</div>
     <div style="color:rgba(255,255,255,0.9); font-size:18px; line-height:1.8; margin-bottom:25px; font-family: 'PingFang SC','Microsoft YaHei',serif;">${blessing.message}</div>
     <div style="cursor:pointer; display:inline-block; padding:10px 30px; border:1px solid rgba(74,222,128,0.5); border-radius:25px; color:rgba(74,222,128,0.9); font-size:14px; transition:0.3s;" 
