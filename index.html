@@ -780,7 +780,7 @@ window.gbStartExperience = function() {
 
   // 直接进入粒子倒计时
   initIntroParticles();
-  let count = 4;
+  let count = 3;
   const interval = setInterval(() => {
     if (count > 0) { morphToText(count.toString(), 250); count--; }
     else {
@@ -805,16 +805,16 @@ window.gbStartExperience = function() {
 };
 
 function gbFinishIntro() {
-  // 预加载照片到蛋糕上
-  const preloadPhotos = ['photos/photo1.jpg','photos/photo2.jpg','photos/photo3.jpg','photos/photo4.jpg','photos/photo5.jpg','photos/photo6.jpg'];
-  preloadPhotos.forEach(src => {
-    const img = new Image();
-    // 仅在 http/https 环境下设置 crossOrigin（file:// 协议下设置会导致加载失败）
-    if (location.protocol !== 'file:') img.crossOrigin = 'anonymous';
-    img.src = src;
-    img.onload = () => { gbAddPhotoMesh(img); };
-    img.onerror = () => { console.warn('照片加载失败:', src); };
-  });
+  // 生成信封（每个信封对应一个人的祝福）
+  const blessings = [
+    { from: '小明', message: '生日快乐！愿你每天都开心，事事顺心！🎂' },
+    { from: '小红', message: '祝你生日快乐，新的一岁万事如意，心想事成！🌟' },
+    { from: '小华', message: '生日快乐！愿你永远年轻漂亮，未来可期！✨' },
+    { from: '小李', message: '祝你生日快乐！希望你每天都有好心情！🎉' },
+    { from: '小王', message: '生日快乐！愿所有美好都如期而至！🎁' },
+    { from: '小张', message: '祝你新的一岁，健康平安，前程似锦！🌈' }
+  ];
+  blessings.forEach((b, i) => { gbAddEnvelopeMesh(b, i, blessings.length); });
 
   const dims = gbUpdateDimensions();
   const finalZ = dims.height > dims.width ? 200 : 140;
@@ -1375,44 +1375,159 @@ document.getElementById('gb-file-input').addEventListener('change', function(e) 
   alert('已添加 ' + files.length + ' 张照片');
 });
 
-let gbPhotoIndex = 0;
-function gbAddPhotoMesh(img) {
-  const tex = new THREE.Texture(img);
-  tex.needsUpdate = true; tex.colorSpace = THREE.SRGBColorSpace;
-  let w = 8, h = 8;
-  if (img.width > img.height) h = 8*(img.height/img.width); else w = 8*(img.width/img.height);
-  const mat = new THREE.MeshBasicMaterial({
-    map: tex, side: THREE.DoubleSide,
-    transparent: false, depthTest: true, depthWrite: true
-  });
-  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
-  mesh.renderOrder = 999;
-  const frame = new THREE.Mesh(
-    new THREE.BoxGeometry(w+0.5, h+0.5, 0.2),
-    new THREE.MeshBasicMaterial({ color:0x4ade80, transparent: false, depthTest: true, depthWrite: true })
-  );
-  frame.renderOrder = 998;
-  frame.position.z = -0.12; mesh.add(frame);
+function gbAddEnvelopeMesh(blessing, idx, total) {
+  // 创建信封形状的 mesh
+  const envGroup = new THREE.Group();
 
-  const totalPhotos = 6;
-  const idx = gbPhotoIndex % totalPhotos;
-  gbPhotoIndex++;
+  // 信封主体（长方形）
+  const bodyGeo = new THREE.PlaneGeometry(8, 6);
+  const bodyMat = new THREE.MeshPhysicalMaterial({
+    color: 0xfff8e7, side: THREE.DoubleSide,
+    roughness: 0.8, metalness: 0.0,
+    emissive: 0xffeecc, emissiveIntensity: 0.2
+  });
+  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  envGroup.add(body);
+
+  // 信封三角形盖子
+  const flapShape = new THREE.Shape();
+  flapShape.moveTo(-4, 0); flapShape.lineTo(0, -3); flapShape.lineTo(4, 0); flapShape.closePath();
+  const flapGeo = new THREE.ShapeGeometry(flapShape);
+  const flapMat = new THREE.MeshPhysicalMaterial({
+    color: 0xffe4b5, side: THREE.DoubleSide,
+    roughness: 0.7, metalness: 0.1,
+    emissive: 0xffcc88, emissiveIntensity: 0.15
+  });
+  const flap = new THREE.Mesh(flapGeo, flapMat);
+  flap.position.set(0, 3, 0.05);
+  envGroup.add(flap);
+
+  // 爱心封印
+  const heartShape = new THREE.Shape();
+  heartShape.moveTo(0, -0.3);
+  heartShape.bezierCurveTo(0, -0.6, -0.6, -0.6, -0.6, -0.2);
+  heartShape.bezierCurveTo(-0.6, 0.2, 0, 0.5, 0, 0.8);
+  heartShape.bezierCurveTo(0, 0.5, 0.6, 0.2, 0.6, -0.2);
+  heartShape.bezierCurveTo(0.6, -0.6, 0, -0.6, 0, -0.3);
+  const heartGeo = new THREE.ShapeGeometry(heartShape);
+  const heartMat = new THREE.MeshBasicMaterial({ color: 0xff4466, side: THREE.DoubleSide });
+  const heart = new THREE.Mesh(heartGeo, heartMat);
+  heart.position.set(0, 2.2, 0.1);
+  heart.scale.set(1.2, 1.2, 1);
+  envGroup.add(heart);
+
+  // "From: xxx" 文字用 canvas 纹理
+  const canvas = document.createElement('canvas');
+  canvas.width = 256; canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#8B4513';
+  ctx.font = 'bold 28px PingFang SC, Microsoft YaHei, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('From: ' + blessing.from, 128, 40);
+  const labelTex = new THREE.CanvasTexture(canvas);
+  const labelMat = new THREE.MeshBasicMaterial({ map: labelTex, transparent: true, side: THREE.DoubleSide });
+  const label = new THREE.Mesh(new THREE.PlaneGeometry(5, 1.2), labelMat);
+  label.position.set(0, -1.5, 0.05);
+  envGroup.add(label);
+
+  // 外发光边框
+  const frameMat = new THREE.MeshBasicMaterial({ color: 0x4ade80, transparent: true, opacity: 0.4 });
+  const frame = new THREE.Mesh(new THREE.PlaneGeometry(8.8, 6.8), frameMat);
+  frame.position.z = -0.1;
+  frame.renderOrder = 998;
+  envGroup.add(frame);
+
+  envGroup.renderOrder = 999;
+
+  // 定位（和原来照片一样的布局）
   const layer = idx < 3 ? 0 : 1;
   const angleIdx = idx < 3 ? idx : idx - 3;
   const theta = (angleIdx / 3) * Math.PI * 2 + (layer * Math.PI / 3);
-
   const tier = CONFIG.tiers[layer];
   const r = tier.radius + 14;
   const yPos = tier.yBottom + tier.height * 0.5;
-
   const treePos = new THREE.Vector3(r * Math.cos(theta), yPos, r * Math.sin(theta));
-  mesh.userData = { treePos, scatterPos: randomSpherePoint(50), baseRot: new THREE.Euler(0, 0, 0) };
-  mesh.position.copy(treePos);
-  mesh.lookAt(0, yPos, 0);
-  mesh.rotateY(Math.PI);
-  photoMeshes.push(mesh);
-  mainGroup.add(mesh);
+
+  envGroup.userData = {
+    treePos, scatterPos: randomSpherePoint(50),
+    baseRot: new THREE.Euler(0, 0, 0),
+    blessing: blessing
+  };
+  envGroup.position.copy(treePos);
+  envGroup.lookAt(0, yPos, 0);
+  envGroup.rotateY(Math.PI);
+  photoMeshes.push(envGroup);
+  mainGroup.add(envGroup);
 }
+
+// ── 信封点击交互：Raycaster 检测点击 ──
+const gbRaycaster = new THREE.Raycaster();
+const gbMouse = new THREE.Vector2();
+
+function gbOnEnvelopeClick(event) {
+  const rect = renderer.domElement.getBoundingClientRect();
+  gbMouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+  gbMouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+  gbRaycaster.setFromCamera(gbMouse, camera);
+
+  // 检测所有信封 mesh
+  const allMeshes = [];
+  photoMeshes.forEach(group => { group.traverse(child => { if (child.isMesh) allMeshes.push(child); }); });
+  const intersects = gbRaycaster.intersectObjects(allMeshes);
+
+  if (intersects.length > 0) {
+    // 找到被点击信封的父 group
+    let target = intersects[0].object;
+    while (target.parent && !target.userData.blessing) target = target.parent;
+    if (target.userData.blessing) {
+      gbShowBlessing(target.userData.blessing);
+    }
+  }
+}
+
+function gbShowBlessing(blessing) {
+  // 移除已有弹窗
+  const existing = document.getElementById('gb-blessing-popup');
+  if (existing) existing.remove();
+
+  const popup = document.createElement('div');
+  popup.id = 'gb-blessing-popup';
+  popup.style.cssText = `
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0);
+    background: linear-gradient(135deg, rgba(20,20,40,0.95), rgba(10,10,30,0.98));
+    border: 2px solid rgba(74,222,128,0.6); border-radius: 20px;
+    padding: 40px 35px; max-width: 380px; width: 85%;
+    text-align: center; z-index: 99999;
+    box-shadow: 0 0 40px rgba(74,222,128,0.3), inset 0 0 30px rgba(74,222,128,0.05);
+    backdrop-filter: blur(10px);
+    animation: gbPopIn 0.4s ease forwards;
+  `;
+  popup.innerHTML = `
+    <style>
+      @keyframes gbPopIn { to { transform: translate(-50%, -50%) scale(1); } }
+      @keyframes gbPopOut { to { transform: translate(-50%, -50%) scale(0); opacity: 0; } }
+    </style>
+    <div style="font-size:40px; margin-bottom:15px;">💌</div>
+    <div style="color:rgba(74,222,128,0.9); font-size:14px; margin-bottom:12px; letter-spacing:2px;">来自 ${blessing.from} 的祝福</div>
+    <div style="color:rgba(255,255,255,0.9); font-size:18px; line-height:1.8; margin-bottom:25px; font-family: 'PingFang SC','Microsoft YaHei',serif;">${blessing.message}</div>
+    <div style="cursor:pointer; display:inline-block; padding:10px 30px; border:1px solid rgba(74,222,128,0.5); border-radius:25px; color:rgba(74,222,128,0.9); font-size:14px; transition:0.3s;" 
+         onmouseover="this.style.background='rgba(74,222,128,0.15)'" 
+         onmouseout="this.style.background='transparent'"
+         onclick="this.parentElement.style.animation='gbPopOut 0.3s ease forwards'; setTimeout(()=>this.parentElement.remove(),300);">
+      收下祝福 ✨
+    </div>
+  `;
+  document.body.appendChild(popup);
+}
+
+// 绑定点击和触摸事件
+renderer.domElement.addEventListener('click', gbOnEnvelopeClick);
+renderer.domElement.addEventListener('touchend', (e) => {
+  if (e.changedTouches.length > 0) {
+    const touch = e.changedTouches[0];
+    gbOnEnvelopeClick({ clientX: touch.clientX, clientY: touch.clientY });
+  }
+});
 
 // ── 直接启动 Three.js（独立页面，无需 waitForInit）──
 gbInitThree();
