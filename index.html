@@ -201,15 +201,14 @@ html, body {
   #gb-controls { top: 15px; right: 15px; }
 }
 </style>
-<script async src="https://unpkg.com/es-module-shims@1.8.0/dist/es-module-shims.js"></script>
-<script type="importmap">
-{
-  "imports": {
-    "three":          "https://unpkg.com/three@0.160.0/build/three.module.js",
-    "three/addons/":  "https://unpkg.com/three@0.160.0/examples/jsm/"
-  }
-}
-</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tweenjs/tween.js@18.6.4/dist/tween.umd.js"></script>
 </head>
 <body>
 
@@ -254,14 +253,9 @@ html, body {
   </div>
 </div>
 
-<script type="module">
-import * as THREE from 'three';
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { FilesetResolver, HandLandmarker } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0';
-import TWEEN from 'https://cdn.jsdelivr.net/npm/@tweenjs/tween.js@18.6.4/dist/tween.esm.js';
+<script>
+// Three.js and addons loaded via script tags above (THREE, THREE.EffectComposer, etc.)
+const TWEEN = window.TWEEN;
 
 // ── 配置 ──
 const CONFIG = {
@@ -467,7 +461,7 @@ function createTexture(type) {
     ctx.fillStyle = grad; ctx.fillRect(0,0,128,128);
   }
   const tex = new THREE.CanvasTexture(canvas);
-  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.encoding = THREE.sRGBEncoding;
   return tex;
 }
 
@@ -495,21 +489,22 @@ function gbInitThree() {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.0;
+    renderer.outputEncoding = THREE.sRGBEncoding;
     container.appendChild(renderer.domElement);
 
-    const pmrem = new THREE.PMREMGenerator(renderer);
-    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-
-    scene.add(new THREE.AmbientLight(0xaaccff, 0.4));
-    const mainSpot = new THREE.SpotLight(0xeefaff, 250);
+    // r128 不支持 PMREMGenerator.fromScene，用更强的环境光代替
+    scene.add(new THREE.AmbientLight(0xaaccff, 0.6));
+    const mainSpot = new THREE.SpotLight(0xeefaff, 2.5);
     mainSpot.position.set(50,80,50); mainSpot.penumbra=0.5; scene.add(mainSpot);
-    const fillLight = new THREE.PointLight(0x0088ff, 80, 200);
+    const fillLight = new THREE.PointLight(0x0088ff, 1.5, 200);
     fillLight.position.set(-50,20,50); scene.add(fillLight);
+    const backLight = new THREE.PointLight(0x4488ff, 1.0, 300);
+    backLight.position.set(0,-30,-80); scene.add(backLight);
 
-    const renderScene = new RenderPass(scene, camera);
-    const bloomPass = new UnrealBloomPass(new THREE.Vector2(dims.width, dims.height), 1.5, 0.4, 0.85);
+    const renderScene = new THREE.RenderPass(scene, camera);
+    const bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(dims.width, dims.height), 1.5, 0.4, 0.85);
     bloomPass.threshold=0.8; bloomPass.strength=1.0; bloomPass.radius=0.8;
-    composer = new EffectComposer(renderer);
+    composer = new THREE.EffectComposer(renderer);
     composer.addPass(renderScene);
     composer.addPass(bloomPass);
 
@@ -901,7 +896,7 @@ function createHeaderText() {
   ctx.fillStyle=grad; ctx.shadowBlur=0;
   ctx.fillText('生日快乐', 1024, 256);
   const tex = new THREE.CanvasTexture(tc);
-  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.encoding = THREE.sRGBEncoding;
   const mat = new THREE.MeshBasicMaterial({ map:tex, transparent:true, opacity:0, blending:THREE.AdditiveBlending, side:THREE.DoubleSide, depthWrite:false });
   const plane = new THREE.Mesh(new THREE.PlaneGeometry(90,22.5), mat);
   const topTier = CONFIG.tiers[CONFIG.tiers.length-1];
@@ -928,10 +923,10 @@ function createStarGeometry() {
 
 // ── 材质与网格 ──
 function createMaterialsAndMeshes() {
-  const crystalMat = new THREE.MeshPhysicalMaterial({ color:0xffffff, metalness:0.1, roughness:0.05, transmission:0.95, thickness:2.0, clearcoat:1.0, emissive:0x88ccff, emissiveIntensity:0.3, transparent:true, opacity:1, flatShading:true });
+  const crystalMat = new THREE.MeshPhysicalMaterial({ color:0xffffff, metalness:0.1, roughness:0.05, clearcoat:1.0, emissive:0x88ccff, emissiveIntensity:0.3, transparent:true, opacity:0.85, flatShading:true });
   const silverMat  = new THREE.MeshPhysicalMaterial({ color:0xaaddff, metalness:0.8, roughness:0.2, emissive:0x004488, emissiveIntensity:0.4, transparent:true, opacity:1 });
-  const gemMat     = new THREE.MeshPhysicalMaterial({ color:0x0033aa, metalness:0.1, roughness:0.0, transmission:0.7, thickness:1.5, emissive:0x001166, emissiveIntensity:1.0, transparent:true, opacity:0.9, flatShading:true });
-  const emeraldMat = new THREE.MeshPhysicalMaterial({ color:0x00ffff, metalness:0.1, roughness:0.1, transmission:0.6, thickness:1.5, emissive:0x008888, emissiveIntensity:0.8, transparent:true, opacity:1 });
+  const gemMat     = new THREE.MeshPhysicalMaterial({ color:0x0033aa, metalness:0.1, roughness:0.0, emissive:0x001166, emissiveIntensity:1.0, transparent:true, opacity:0.8, flatShading:true });
+  const emeraldMat = new THREE.MeshPhysicalMaterial({ color:0x00ffff, metalness:0.1, roughness:0.1, emissive:0x008888, emissiveIntensity:0.8, transparent:true, opacity:0.9 });
   cakeMaterials.push(crystalMat, silverMat, gemMat, emeraldMat);
 
   goldMesh    = createInstancedMesh(new THREE.OctahedronGeometry(0.7,1),       crystalMat, CONFIG.goldCount,    logicData.gold);
@@ -940,7 +935,7 @@ function createMaterialsAndMeshes() {
   emeraldMesh = createInstancedMesh(new THREE.ConeGeometry(0.5,1.2,8),          emeraldMat, CONFIG.emeraldCount, logicData.emerald);
 
   const starGeo = createStarGeometry(); starGeo.center();
-  const starMat = new THREE.MeshPhysicalMaterial({ color:0x88ffff, metalness:0.5, roughness:0.1, transmission:0.5, emissive:0x00ffff, emissiveIntensity:3.0, transparent:true, opacity:1 });
+  const starMat = new THREE.MeshPhysicalMaterial({ color:0x88ffff, metalness:0.5, roughness:0.1, emissive:0x00ffff, emissiveIntensity:3.0, transparent:true, opacity:0.9 });
   const star = new THREE.Mesh(starGeo, starMat);
   cakeMaterials.push(starMat);
   const topTier = CONFIG.tiers[CONFIG.tiers.length-1];
@@ -1140,8 +1135,10 @@ let gbDetectionFrameId = null;
 
 async function gbSetupMediaPipe() {
   try {
-    const vision = await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm');
-    gbGlobalHandLandmarker = await HandLandmarker.createFromOptions(vision, {
+    // 动态加载 MediaPipe（ES Module），不影响 Three.js 的全局加载
+    const mp = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0');
+    const vision = await mp.FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm');
+    gbGlobalHandLandmarker = await mp.HandLandmarker.createFromOptions(vision, {
       baseOptions: {
         modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
         delegate: 'GPU'
@@ -1153,8 +1150,9 @@ async function gbSetupMediaPipe() {
   } catch(e) {
     console.error('MediaPipe GPU 加载失败，尝试 CPU:', e);
     try {
-      const vision2 = await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm');
-      gbGlobalHandLandmarker = await HandLandmarker.createFromOptions(vision2, {
+      const mp2 = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0');
+      const vision2 = await mp2.FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm');
+      gbGlobalHandLandmarker = await mp2.HandLandmarker.createFromOptions(vision2, {
         baseOptions: {
           modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
           delegate: 'CPU'
