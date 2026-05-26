@@ -1460,11 +1460,11 @@ function gbAddEnvelopeMesh(blessing, idx, total) {
   mainGroup.add(envGroup);
 }
 
-// ── 信封点击交互：Raycaster 检测点击 ──
-const gbRaycaster = new THREE.Raycaster();
-const gbMouse = new THREE.Vector2();
+// ── 信封点击交互 ──
+let gbRaycaster, gbMouse;
 
 function gbOnEnvelopeClick(event) {
+  if (!gbRaycaster || !renderer || !camera) return;
   const rect = renderer.domElement.getBoundingClientRect();
   gbMouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
   gbMouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -1520,17 +1520,21 @@ function gbShowBlessing(blessing) {
   document.body.appendChild(popup);
 }
 
-// 绑定点击和触摸事件
-renderer.domElement.addEventListener('click', gbOnEnvelopeClick);
-renderer.domElement.addEventListener('touchend', (e) => {
-  if (e.changedTouches.length > 0) {
-    const touch = e.changedTouches[0];
-    gbOnEnvelopeClick({ clientX: touch.clientX, clientY: touch.clientY });
-  }
-});
-
 // ── 直接启动 Three.js（独立页面，无需 waitForInit）──
 gbInitThree();
+
+// 初始化后绑定信封点击事件
+gbRaycaster = new THREE.Raycaster();
+gbMouse = new THREE.Vector2();
+if (renderer) {
+  renderer.domElement.addEventListener('click', gbOnEnvelopeClick);
+  renderer.domElement.addEventListener('touchend', (e) => {
+    if (e.changedTouches.length > 0) {
+      const touch = e.changedTouches[0];
+      gbOnEnvelopeClick({ clientX: touch.clientX, clientY: touch.clientY });
+    }
+  });
+}
 </script>
 </body>
 </html>
