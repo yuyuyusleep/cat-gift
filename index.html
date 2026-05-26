@@ -1330,8 +1330,8 @@ function gbHandleGesture(landmarks) {
     if (deltaX > 0.01) gbHighlightGesture('swipe');
   }
 
-  if (gesture === 'pinch' && currentState === STATE.SCATTER) {
-    if (photoMeshes.length > 0) {
+  if (gesture === 'pinch') {
+    if (photoMeshes.length > 0 && (currentState === STATE.SCATTER || currentState === STATE.TREE)) {
       targetState = STATE.ZOOM; currentState = STATE.ZOOM;
       gbGesturesDone.pinch = true; gbCheckAllGesturesDone();
       if (zoomTargetIndex === -1) {
@@ -1343,6 +1343,10 @@ function gbHandleGesture(landmarks) {
           if (d < minDist) { minDist = d; bestIdx = idx; }
         });
         zoomTargetIndex = bestIdx;
+      }
+      // 自动弹出最近照片的祝福
+      if (zoomTargetIndex >= 0 && photoMeshes[zoomTargetIndex].userData.blessing) {
+        setTimeout(() => { gbShowBlessing(photoMeshes[zoomTargetIndex].userData.blessing); }, 800);
       }
     }
   } else if (gesture === 'fist') {
@@ -1406,10 +1410,10 @@ function gbAddEnvelopeMesh(blessing, idx, total) {
   const photoTex = texLoader.load(blessing.photo);
   photoTex.colorSpace = THREE.SRGBColorSpace;
 
-  // 照片主体（正方形）
+  // 照片主体（正方形）— 降低亮度
   const photoGeo = new THREE.PlaneGeometry(7, 7);
   const photoMat = new THREE.MeshBasicMaterial({
-    map: photoTex, side: THREE.DoubleSide, transparent: true
+    map: photoTex, side: THREE.DoubleSide, transparent: true, opacity: 0.75
   });
   const photoPlane = new THREE.Mesh(photoGeo, photoMat);
   cardGroup.add(photoPlane);
@@ -1429,7 +1433,7 @@ function gbAddEnvelopeMesh(blessing, idx, total) {
   cardGroup.add(label);
 
   // 柔和边框光晕
-  const frameMat = new THREE.MeshBasicMaterial({ color: 0x4ade80, transparent: true, opacity: 0.12 });
+  const frameMat = new THREE.MeshBasicMaterial({ color: 0x4ade80, transparent: true, opacity: 0.08 });
   const frame = new THREE.Mesh(new THREE.PlaneGeometry(7.6, 7.6), frameMat);
   frame.position.z = -0.1;
   cardGroup.add(frame);
@@ -1466,17 +1470,25 @@ function gbOnEnvelopeClick(event) {
   gbMouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
   gbRaycaster.setFromCamera(gbMouse, camera);
 
-  // 检测所有信封 mesh
+  // 检测所有照片卡片 mesh
   const allMeshes = [];
-  photoMeshes.forEach(group => { group.traverse(child => { if (child.isMesh) allMeshes.push(child); }); });
+  const meshToGroup = new Map();
+  photoMeshes.forEach(group => {
+    group.traverse(child => {
+      if (child.isMesh) {
+        allMeshes.push(child);
+        meshToGroup.set(child, group);
+      }
+    });
+  });
   const intersects = gbRaycaster.intersectObjects(allMeshes);
 
   if (intersects.length > 0) {
-    // 找到被点击信封的父 group
-    let target = intersects[0].object;
-    while (target.parent && !target.userData.blessing) target = target.parent;
-    if (target.userData.blessing) {
-      gbShowBlessing(target.userData.blessing);
+    // 通过 map 直接找到对应的 group
+    const hitMesh = intersects[0].object;
+    const group = meshToGroup.get(hitMesh);
+    if (group && group.userData.blessing) {
+      gbShowBlessing(group.userData.blessing);
     }
   }
 }
