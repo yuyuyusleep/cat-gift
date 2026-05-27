@@ -248,7 +248,6 @@ html, body {
       <div class="gb-gesture-item" data-gesture="open"><span class="gb-highlight">🖐 张开五指</span> 散开星云</div>
       <div class="gb-gesture-item" data-gesture="swipe"><span class="gb-highlight">👋 挥动手掌</span> 旋转视角</div>
       <div class="gb-gesture-item" data-gesture="pinch"><span class="gb-highlight">🤏 捏合手指</span> 查看照片</div>
-      <div class="gb-gesture-item" data-gesture="heart"><span class="gb-highlight">🫶 双手比爱心</span> 送出爱心</div>
     </div>
   </div>
 </div>
@@ -1257,7 +1256,9 @@ function gbDrawSkeleton(ctx, landmarks, w, h) {
 
 // 手势防抖
 let gbGestureBuffer = [];
-const GB_GESTURE_FRAMES = 4;
+const GB_GESTURE_FRAMES = 10;
+let gbLastGestureTime = 0;
+const GB_GESTURE_COOLDOWN = 1500; // 手势触发后冷却1.5秒
 
 function gbClassifyGesture(landmarks) {
   const tips  = [8, 12, 16, 20];
@@ -1344,16 +1345,20 @@ function gbHandleGesture(landmarks) {
   const stable = gbGestureBuffer.every(g => g === gesture);
   if (!stable) return;
 
+  // 照片放大状态下，张开手掌或挥手 → 关闭照片
+  if (gbPhotoZoomActive && (gesture === 'open')) {
+    gbClosePhotoZoom();
+    return;
+  }
+
+  // 冷却期内不触发新动作
+  const now = Date.now();
+  if (now - gbLastGestureTime < GB_GESTURE_COOLDOWN) return;
+
   // 根据当前手势高亮对应提示
   if (gesture === 'fist') gbHighlightGesture('fist');
   else if (gesture === 'open') gbHighlightGesture('open');
   else if (gesture === 'pinch') gbHighlightGesture('pinch');
-
-  // 挥动检测：scatter 状态下手掌移动时高亮
-  if (currentState === STATE.SCATTER && gesture === 'open') {
-    const deltaX = Math.abs(handPos.x - lastHandPos.x);
-    if (deltaX > 0.01) gbHighlightGesture('swipe');
-  }
 
   if (gesture === 'pinch') {
     if (photoMeshes.length > 0 && (currentState === STATE.SCATTER || currentState === STATE.TREE)) {
@@ -1367,6 +1372,7 @@ function gbHandleGesture(landmarks) {
       });
       gbGesturesDone.pinch = true;
       gbHighlightGesture('pinch');
+      gbLastGestureTime = now;
       // 记忆回廊效果：照片放大到屏幕中央，下方显示祝福
       const blessing = photoMeshes[bestIdx].userData.blessing;
       if (blessing) {
@@ -1379,15 +1385,18 @@ function gbHandleGesture(landmarks) {
       rotationVelocity.x = 0; rotationVelocity.y = 0;
       gbGesturesDone.fist = true;
       gbHighlightGesture('fist');
+      gbLastGestureTime = now;
     }
   } else if (gesture === 'open') {
     if (currentState === STATE.ZOOM) {
       currentState = STATE.SCATTER; zoomTargetIndex = -1;
+      gbLastGestureTime = now;
     } else if (currentState === STATE.TREE) {
       currentState = STATE.SCATTER;
       lastHandPos.x = handPos.x; lastHandPos.y = handPos.y;
       gbGesturesDone.open = true;
       gbHighlightGesture('open');
+      gbLastGestureTime = now;
     }
   }
 }
@@ -1574,24 +1583,24 @@ function gbShowPhotoZoom(blessing) {
       font-family: 'PingFang SC','Microsoft YaHei',serif;
       opacity: 0; animation: blessingFadeIn 0.5s ease 0.9s forwards;
     ">${blessing.message}</div>
-    <div style="
-      margin-top: 25px; color: rgba(255,255,255,0.4); font-size: 12px;
-      opacity: 0; animation: blessingFadeIn 0.5s ease 1.2s forwards;
-    ">轻触关闭</div>
   `;
 
   document.body.appendChild(overlay);
   // 背景渐暗
   requestAnimationFrame(() => { overlay.style.background = 'rgba(0,0,0,0.85)'; });
 
-  // 点击关闭
-  overlay.addEventListener('click', () => {
-    const photo = document.getElementById('gb-zoom-photo');
-    if (photo) photo.style.animation = 'photoZoomOut 0.4s ease forwards';
-    overlay.style.background = 'rgba(0,0,0,0)';
-    overlay.style.transition = 'background 0.3s ease';
-    setTimeout(() => { overlay.remove(); gbPhotoZoomActive = false; }, 400);
-  });
+  // 点击也可关闭
+  overlay.addEventListener('click', () => { gbClosePhotoZoom(); });
+}
+
+function gbClosePhotoZoom() {
+  const overlay = document.getElementById('gb-photo-zoom');
+  if (!overlay) { gbPhotoZoomActive = false; return; }
+  const photo = document.getElementById('gb-zoom-photo');
+  if (photo) photo.style.animation = 'photoZoomOut 0.4s ease forwards';
+  overlay.style.background = 'rgba(0,0,0,0)';
+  overlay.style.transition = 'background 0.3s ease';
+  setTimeout(() => { overlay.remove(); gbPhotoZoomActive = false; gbLastGestureTime = Date.now(); }, 400);
 }
 
 // 兼容旧的点击调用
