@@ -1256,7 +1256,7 @@ function gbDrawSkeleton(ctx, landmarks, w, h) {
 
 // 手势防抖
 let gbGestureBuffer = [];
-const GB_GESTURE_FRAMES = 10;
+const GB_GESTURE_FRAMES = 12;
 let gbLastGestureTime = 0;
 const GB_GESTURE_COOLDOWN = 2000; // 手势触发后冷却2秒防误触
 
@@ -1267,14 +1267,13 @@ function gbClassifyGesture(landmarks) {
   for (let i = 0; i < 4; i++) {
     if (landmarks[tips[i]].y > landmarks[pips[i]].y) folded++;
   }
-  const thumbTip = landmarks[4];
-  const thumbIP  = landmarks[3];
-  const thumbFolded = Math.abs(thumbTip.x - thumbIP.x) < 0.06;
 
   const dPinch = Math.hypot(landmarks[4].x - landmarks[8].x, landmarks[4].y - landmarks[8].y);
-  const isPinch = dPinch < 0.07;
+  // pinch 需要：拇指食指非常靠近 + 其余三指至少2根伸直（排除自然握拳时的误判）
+  const otherFingersExtended = (folded <= 2);
+  const isPinch = dPinch < 0.05 && otherFingersExtended;
   const isFist = folded >= 4;
-  const isOpen = folded <= 1 && !isPinch;
+  const isOpen = folded <= 1 && dPinch > 0.08;
 
   if (isPinch) return 'pinch';
   if (isFist)  return 'fist';
