@@ -629,20 +629,15 @@ function playHeartAnimation() {
   const startScreen = document.getElementById('gb-start-screen');
 
   // 时间线（基于 12.4s 视频，逐帧校准）
-  // 视频正常顺序播放，在关键节点暂停等待点击：
-  // 0→1.3s   猫咪跳进来坐好 → 暂停在1.3s（纯坐姿，前爪收好，未抬爪）
+  // 直接从坐姿开始（跳过入场跳跃），在关键节点暂停等待点击：
+  // 开始直接定格在1.3s（坐姿）等待点击
   // 点击 → 1.3→5.0s 猫招手+舔爪子 → 暂停在5.0s（舔爪结束定格）
-  // 点击 → 5.0→8.5s 猫打滚完整动作 → 暂停在8.5s（仰躺四脚朝天最终帧）
+  // 点击 → 跳到5.8s直接打滚（跳过舔爪过渡）→ 暂停在8.5s（仰躺四脚朝天）
   // 点击 → 8.5→结束 猫起身走向镜头 → 进入体验
-  //
-  // 每个暂停帧精确说明：
-  // 1.3s = 猫完全坐稳，正面端坐，前爪收好
-  // 5.0s = 猫低头舔爪的最终帧
-  // 8.5s = 猫仰躺打滚四脚朝天的最终帧
-  const PAUSE_AT = { sit: 1.3, waveEnd: 5.0, rollEnd: 8.5 };
+  const PAUSE_AT = { sit: 1.3, waveEnd: 5.0, rollStart: 5.8, rollEnd: 8.5 };
 
-  // stage: 0=播放入场, 1=坐姿等点击, 2=播放招手中, 3=招手完等点击, 4=播放打滚中, 5=打滚完等点击, 6=播放礼物中, 7=结束
-  let stage = 0;
+  // stage: 1=坐姿等点击, 2=播放招手中, 3=招手完等点击, 4=播放打滚中, 5=打滚完等点击, 6=播放礼物中, 7=结束
+  let stage = 1; // 直接从坐姿开始
   let rafId = null;
 
   function showClickHint(text) {
@@ -660,16 +655,6 @@ function playHeartAnimation() {
 
       const t = video.currentTime;
 
-      if (stage === 0 && t >= PAUSE_AT.sit) {
-        // 入场播完，精确停在坐姿帧
-        video.pause();
-        video.currentTime = PAUSE_AT.sit;
-        stage = 1;
-        hint.style.opacity = '0';
-        showClickHint('🐾 用逗猫棒戳戳它~');
-        rafId = null;
-        return;
-      }
       if (stage === 2 && t >= PAUSE_AT.waveEnd) {
         // 招手播完，精确停在招手最后一帧
         video.pause();
@@ -709,20 +694,15 @@ function playHeartAnimation() {
   // 视频播放时启动精确监测
   video.addEventListener('play', startWatching);
 
-  // 视频开始播放（入场）
-  video.play().catch(() => {
-    wrapper.addEventListener('click', function firstPlay() {
-      video.play();
-      wrapper.removeEventListener('click', firstPlay);
-    }, { once: true });
-  });
-
-  // 确保入场正确
+  // 直接定格到坐姿帧，不播放入场动画
   video.addEventListener('loadeddata', function() {
-    if (stage === 0) {
-      video.currentTime = 0;
-    }
+    video.currentTime = PAUSE_AT.sit;
+    video.pause();
+    hint.style.opacity = '0';
+    showClickHint('🐾 用逗猫棒戳戳它~');
   });
+  // 设置初始时间
+  video.load();
 
   // 点击处理
   function handleClick() {
@@ -735,8 +715,9 @@ function playHeartAnimation() {
       video.play();
       showClickHint('🐾 猫咪在打招呼~');
     } else if (stage === 3) {
-      // 第2次点击：继续播放趴下+打滚
+      // 第2次点击：跳过舔爪过渡，直接打滚
       stage = 4;
+      video.currentTime = PAUSE_AT.rollStart;
       video.play();
       showClickHint('🐾 猫咪在打滚~');
     } else if (stage === 5) {
