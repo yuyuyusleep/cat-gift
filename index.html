@@ -1303,22 +1303,22 @@ function gbClassifyGesture(landmarks) {
   return 'unknown';
 }
 
-// 找到屏幕正前方中间的照片（离相机视线中心最近的）
+// 找到正面三张中最中间的那张照片（离相机最近的那张）
 function gbGetCenterPhotoIndex() {
   if (photoMeshes.length === 0) return 0;
-  // 强制更新场景矩阵，确保旋转后投影准确
   scene.updateMatrixWorld(true);
   camera.updateMatrixWorld(true);
-  camera.updateProjectionMatrix();
+
+  // 相机位置
+  const camPos = new THREE.Vector3();
+  camera.getWorldPosition(camPos);
 
   let minDist = Infinity, bestIdx = 0;
   const worldPos = new THREE.Vector3();
-  const projected = new THREE.Vector3();
   photoMeshes.forEach((mesh, idx) => {
     mesh.getWorldPosition(worldPos);
-    projected.copy(worldPos).project(camera);
-    // NDC 中 (0,0) 是屏幕正中心，找投影最接近中心的
-    const d = Math.hypot(projected.x, projected.y);
+    // 找离相机最近的照片 = 正面最中间那张
+    const d = camPos.distanceTo(worldPos);
     if (d < minDist) { minDist = d; bestIdx = idx; }
   });
   return bestIdx;
