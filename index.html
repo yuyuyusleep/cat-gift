@@ -1280,15 +1280,16 @@ function gbClassifyGesture(landmarks) {
 
   // 拇指尖到食指尖的距离
   const dPinch = Math.hypot(landmarks[4].x - landmarks[8].x, landmarks[4].y - landmarks[8].y);
-  // 拇指尖到中指尖的距离（用于区分：pinch时拇食靠近但中指远离）
+  // 拇指尖到中指尖的距离
   const dThumbMiddle = Math.hypot(landmarks[4].x - landmarks[12].x, landmarks[4].y - landmarks[12].y);
 
-  // pinch：拇指食指真正捏紧（<0.06） + 中指离拇指较远（>0.08，说明不是自然合拢）
-  const isPinch = dPinch < 0.06 && dThumbMiddle > 0.08;
+  // pinch 判定：拇食指距离 < 0.08 且 远小于 拇中指距离（比值<0.6说明是主动捏合）
+  // 这样即使手大手小、远近不同都能适应
+  const isPinch = dPinch < 0.08 && (dThumbMiddle > 0.01) && (dPinch / dThumbMiddle < 0.6);
   // fist：4根手指都弯曲
-  const isFist = folded >= 4;
+  const isFist = folded >= 4 && !isPinch;
   // open：手指全部伸直，拇食指距离远
-  const isOpen = folded <= 1 && dPinch > 0.12;
+  const isOpen = folded <= 1 && dPinch > 0.1;
 
   if (isPinch) return 'pinch';
   if (isFist)  return 'fist';
@@ -1378,10 +1379,10 @@ function gbHandleGesture(landmarks) {
   const gesture = gbClassifyGesture(landmarks);
   gbGestureBuffer.push(gesture);
   if (gbGestureBuffer.length > GB_GESTURE_FRAMES) gbGestureBuffer.shift();
-  // 严格判定：6帧全部一致才算稳定（杜绝误触）
+  // 稳定性判定：6帧中至少5帧相同
   if (gbGestureBuffer.length < GB_GESTURE_FRAMES) return;
-  const allSame = gbGestureBuffer.every(g => g === gesture);
-  if (!allSame) return;
+  const count = gbGestureBuffer.filter(g => g === gesture).length;
+  if (count < 5) return;
 
   // 照片放大状态下，张开手掌 → 关闭照片，其他手势忽略
   if (gbPhotoZoomActive) {
