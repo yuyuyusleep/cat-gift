@@ -804,7 +804,10 @@ window.gbStartExperience = function() {
     if (count > 0) { morphToText(count.toString(), 250); count--; }
     else {
       clearInterval(interval);
-      morphToText('生日快乐', 140);
+      morphToText('Arlene', 160);
+      setTimeout(() => {
+        morphToText('生日快乐', 140);
+      }, 2000);
       setTimeout(() => {
         triggerWarpSpeed(() => {
           let fwCount = 0;
@@ -818,7 +821,7 @@ window.gbStartExperience = function() {
             }
           }, 200);
         });
-      }, 2000);
+      }, 4000);
     }
   }, 1000);
 };
