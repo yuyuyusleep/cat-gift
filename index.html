@@ -1267,7 +1267,7 @@ function gbDrawSkeleton(ctx, landmarks, w, h) {
 let gbGestureBuffer = [];
 const GB_GESTURE_FRAMES = 6;
 let gbLastGestureTime = 0;
-const GB_GESTURE_COOLDOWN = 800; // 手势触发后短冷却
+const GB_GESTURE_COOLDOWN = 500; // 手势触发后短冷却
 let gbLastStableGesture = 'unknown'; // 上一个稳定手势，用于检测变化
 
 function gbClassifyGesture(landmarks) {
@@ -1371,8 +1371,9 @@ function gbHandleGesture(landmarks) {
   const gesture = gbClassifyGesture(landmarks);
   gbGestureBuffer.push(gesture);
   if (gbGestureBuffer.length > GB_GESTURE_FRAMES) gbGestureBuffer.shift();
-  const stable = gbGestureBuffer.every(g => g === gesture);
-  if (!stable) return;
+  // 多数投票：6帧里至少5帧相同就算稳定
+  const count = gbGestureBuffer.filter(g => g === gesture).length;
+  if (count < 5) return;
 
   // 照片放大状态下，张开手掌 → 关闭照片，其他手势忽略
   if (gbPhotoZoomActive) {
