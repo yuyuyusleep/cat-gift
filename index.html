@@ -1032,12 +1032,15 @@ function gbAnimate() {
     if (currentState === STATE.ZOOM) {
       rotationVelocity.x = 0; rotationVelocity.y = 0;
     } else if (currentState === STATE.SCATTER) {
-      if (isHandPresent) {
+      if (isHandPresent && gbLastStableGesture === 'open') {
+        // 只在张开手掌时响应滑动旋转，握拳/捧手移动不转（用于复位手位）
         const deltaX = handPos.x - lastHandPos.x;
         const deltaY = handPos.y - lastHandPos.y;
-        // 忽略过大跳变（手离开后重新出现）
         if (Math.abs(deltaX) < 0.08 && Math.abs(deltaX) > 0.001) rotationVelocity.y += deltaX * 0.5;
         if (Math.abs(deltaY) < 0.08 && Math.abs(deltaY) > 0.001) rotationVelocity.x += deltaY * 0.15;
+        lastHandPos.x = handPos.x; lastHandPos.y = handPos.y;
+      } else if (isHandPresent) {
+        // 非开掌状态，只更新位置不旋转（这样复位手时不会反转）
         lastHandPos.x = handPos.x; lastHandPos.y = handPos.y;
       }
       rotationVelocity.y = Math.min(Math.max(rotationVelocity.y, -0.15), 0.15);
@@ -1147,7 +1150,10 @@ baseOptions: {
 modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
 delegate: 'GPU'
 },
-runningMode: 'VIDEO', numHands: 2
+runningMode: 'VIDEO', numHands: 2,
+minHandDetectionConfidence: 0.7,
+minHandPresenceConfidence: 0.7,
+minTrackingConfidence: 0.6
     });
     gbGlobalVideo = document.getElementById('gb-input-video');
     gbStartCamera();
@@ -1160,7 +1166,10 @@ baseOptions: {
 modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
 delegate: 'CPU'
 },
-runningMode: 'VIDEO', numHands: 2
+runningMode: 'VIDEO', numHands: 2,
+minHandDetectionConfidence: 0.7,
+minHandPresenceConfidence: 0.7,
+minTrackingConfidence: 0.6
       });
       gbGlobalVideo = document.getElementById('gb-input-video');
       gbStartCamera();
