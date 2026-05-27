@@ -1258,7 +1258,7 @@ function gbDrawSkeleton(ctx, landmarks, w, h) {
 let gbGestureBuffer = [];
 const GB_GESTURE_FRAMES = 10;
 let gbLastGestureTime = 0;
-const GB_GESTURE_COOLDOWN = 1500; // 手势触发后冷却1.5秒
+const GB_GESTURE_COOLDOWN = 2000; // 手势触发后冷却2秒防误触
 
 function gbClassifyGesture(landmarks) {
   const tips  = [8, 12, 16, 20];
@@ -1345,9 +1345,9 @@ function gbHandleGesture(landmarks) {
   const stable = gbGestureBuffer.every(g => g === gesture);
   if (!stable) return;
 
-  // 照片放大状态下，张开手掌或挥手 → 关闭照片
-  if (gbPhotoZoomActive && (gesture === 'open')) {
-    gbClosePhotoZoom();
+  // 照片放大状态下，张开手掌 → 关闭照片，其他手势忽略
+  if (gbPhotoZoomActive) {
+    if (gesture === 'open') gbClosePhotoZoom();
     return;
   }
 
@@ -1361,7 +1361,8 @@ function gbHandleGesture(landmarks) {
   else if (gesture === 'pinch') gbHighlightGesture('pinch');
 
   if (gesture === 'pinch') {
-    if (photoMeshes.length > 0 && (currentState === STATE.SCATTER || currentState === STATE.TREE)) {
+    // 只在散开(SCATTER)状态下才能捏手查看照片，聚拢状态不触发
+    if (photoMeshes.length > 0 && currentState === STATE.SCATTER) {
       // 找到离镜头最近的照片
       let minDist = Infinity, bestIdx = 0;
       const camPos = camera.position, worldPos = new THREE.Vector3();
