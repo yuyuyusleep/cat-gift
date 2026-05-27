@@ -1285,7 +1285,7 @@ function gbClassifyGesture(landmarks) {
 }
 
 // 手势完成追踪
-let gbPinchViewIndex = -1; // pinch轮流查看照片索引
+let gbPinchViewIndex = 0; // pinch轮流查看照片索引
 const gbGesturesDone = { fist: false, open: false, pinch: false };
 let gbHeartTriggered = false;
 
@@ -1365,9 +1365,7 @@ function gbHandleGesture(landmarks) {
 
   if (gesture === 'pinch') {
     // 只在散开(SCATTER)状态下才能捏手查看照片
-    if (photoMeshes.length > 0 && currentState === STATE.SCATTER) {
-      // 按顺序轮流查看照片
-      gbPinchViewIndex = (gbPinchViewIndex + 1) % photoMeshes.length;
+    if (photoMeshes.length > 0 && currentState === STATE.SCATTER && !gbPhotoZoomActive) {
       gbGesturesDone.pinch = true;
       gbHighlightGesture('pinch');
       gbLastGestureTime = now;
@@ -1598,7 +1596,13 @@ function gbClosePhotoZoom() {
   if (photo) photo.style.animation = 'photoZoomOut 0.4s ease forwards';
   overlay.style.background = 'rgba(0,0,0,0)';
   overlay.style.transition = 'background 0.3s ease';
-  setTimeout(() => { overlay.remove(); gbPhotoZoomActive = false; gbLastGestureTime = Date.now(); }, 400);
+  setTimeout(() => {
+    overlay.remove();
+    gbPhotoZoomActive = false;
+    // 关闭后切换到下一张，下次pinch看新的人
+    gbPinchViewIndex = (gbPinchViewIndex + 1) % photoMeshes.length;
+    gbLastGestureTime = Date.now();
+  }, 400);
 }
 
 // 兼容旧的点击调用
