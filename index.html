@@ -1115,8 +1115,7 @@ function gbUpdatePhotos() {
       mesh.lookAt(camera.position);
     } else if (currentState === STATE.SCATTER) {
       targetPos = mesh.userData.scatterPos;
-      targetScale = 4.0;
-      mesh.position.y += Math.sin(time + idx) * 0.01;
+      targetScale = 3.0;
       mesh.lookAt(camera.position);
     } else if (currentState === STATE.ZOOM) {
       if (idx === zoomTargetIndex) {
@@ -1486,10 +1485,10 @@ function gbAddEnvelopeMesh(blessing, idx, total) {
   const yPos = -5 + (idx % 2) * 10; // 交错高度，避免重叠
   const treePos = new THREE.Vector3(r * Math.cos(theta), yPos, r * Math.sin(theta));
 
-  // 散开位置：均匀圆环分布（不随机，避免重叠）
+  // 散开位置：同一水平线环绕蛋糕
   const scatterTheta = (idx / total) * Math.PI * 2;
-  const scatterR = 55;
-  const scatterY = -10 + (idx / total) * 20;
+  const scatterR = 50;
+  const scatterY = 0; // 同一水平线
   const scatterPos = new THREE.Vector3(scatterR * Math.cos(scatterTheta), scatterY, scatterR * Math.sin(scatterTheta));
 
   cardGroup.userData = {
