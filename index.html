@@ -1285,6 +1285,7 @@ function gbClassifyGesture(landmarks) {
 }
 
 // 手势完成追踪
+let gbPinchViewIndex = -1; // pinch轮流查看照片索引
 const gbGesturesDone = { fist: false, open: false, pinch: false };
 let gbHeartTriggered = false;
 
@@ -1363,21 +1364,14 @@ function gbHandleGesture(landmarks) {
   else if (gesture === 'pinch') gbHighlightGesture('pinch');
 
   if (gesture === 'pinch') {
-    // 只在散开(SCATTER)状态下才能捏手查看照片，聚拢状态不触发
+    // 只在散开(SCATTER)状态下才能捏手查看照片
     if (photoMeshes.length > 0 && currentState === STATE.SCATTER) {
-      // 找到离镜头最近的照片
-      let minDist = Infinity, bestIdx = 0;
-      const camPos = camera.position, worldPos = new THREE.Vector3();
-      photoMeshes.forEach((mesh, idx) => {
-        mesh.getWorldPosition(worldPos);
-        const d = worldPos.distanceTo(camPos);
-        if (d < minDist) { minDist = d; bestIdx = idx; }
-      });
+      // 按顺序轮流查看照片
+      gbPinchViewIndex = (gbPinchViewIndex + 1) % photoMeshes.length;
       gbGesturesDone.pinch = true;
       gbHighlightGesture('pinch');
       gbLastGestureTime = now;
-      // 记忆回廊效果：照片放大到屏幕中央，下方显示祝福
-      const blessing = photoMeshes[bestIdx].userData.blessing;
+      const blessing = photoMeshes[gbPinchViewIndex].userData.blessing;
       if (blessing) {
         gbShowPhotoZoom(blessing);
       }
@@ -1475,18 +1469,20 @@ function gbAddEnvelopeMesh(blessing, idx, total) {
   frame.position.z = -0.1;
   cardGroup.add(frame);
 
-  // 定位（8张照片均匀分布在两层）
-  const layer = idx < 4 ? 0 : 1;
-  const angleIdx = idx < 4 ? idx : idx - 4;
-  const countInLayer = 4;
-  const theta = (angleIdx / countInLayer) * Math.PI * 2 + (layer * Math.PI / 4);
-  const tier = CONFIG.tiers[layer];
-  const r = tier.radius + 14;
-  const yPos = tier.yBottom + tier.height * 0.5;
+  // 定位：8张照片均匀分布在蛋糕周围一圈（单层大圆）
+  const theta = (idx / total) * Math.PI * 2;
+  const r = 38;
+  const yPos = -5 + (idx % 2) * 10; // 交错高度，避免重叠
   const treePos = new THREE.Vector3(r * Math.cos(theta), yPos, r * Math.sin(theta));
 
+  // 散开位置：均匀圆环分布（不随机，避免重叠）
+  const scatterTheta = (idx / total) * Math.PI * 2;
+  const scatterR = 55;
+  const scatterY = -10 + (idx / total) * 20;
+  const scatterPos = new THREE.Vector3(scatterR * Math.cos(scatterTheta), scatterY, scatterR * Math.sin(scatterTheta));
+
   cardGroup.userData = {
-    treePos, scatterPos: randomSpherePoint(50),
+    treePos, scatterPos,
     baseRot: new THREE.Euler(0, 0, 0),
     blessing: blessing
   };
