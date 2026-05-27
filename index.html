@@ -1289,10 +1289,16 @@ function gbClassifyGesture(landmarks) {
   // pinch 判定：拇食指距离相对手掌很小 + 明显小于拇中指距离
   const isPinch = normalizedPinch < 0.25 && (dThumbMiddle > 0.01) && (dPinch / dThumbMiddle < 0.65);
 
-  // fist 判定：4根手指弯曲 + 拇指也收拢（拇指尖在食指根部附近）
-  // 额外条件：拇指尖y坐标低于中指根部（说明拇指收进来了，不是张开挥动）
-  const thumbTucked = landmarks[4].y > landmarks[9].y;
-  const isFist = folded >= 4 && thumbTucked && !isPinch;
+  // fist 判定：4根手指弯曲 + 指尖全部紧贴手掌（指尖到手腕距离 < 掌长的60%）
+  // 挥动时手指可能因运动模糊被误判为折叠，但指尖不会真的靠近手腕
+  let fistTight = true;
+  if (folded >= 4) {
+    for (let i = 0; i < 4; i++) {
+      const tipDist = Math.hypot(landmarks[tips[i]].x - landmarks[0].x, landmarks[tips[i]].y - landmarks[0].y);
+      if (tipDist > palmSize * 0.75) { fistTight = false; break; }
+    }
+  }
+  const isFist = folded >= 4 && fistTight && !isPinch;
 
   // open：手指全部伸直
   const isOpen = folded <= 1 && normalizedPinch > 0.35;
