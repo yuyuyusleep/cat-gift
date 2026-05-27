@@ -1267,7 +1267,7 @@ function gbDrawSkeleton(ctx, landmarks, w, h) {
 let gbGestureBuffer = [];
 const GB_GESTURE_FRAMES = 6;
 let gbLastGestureTime = 0;
-const GB_GESTURE_COOLDOWN = 500; // 手势触发后短冷却
+const GB_GESTURE_COOLDOWN = 800; // 手势触发后冷却（防连续误触）
 let gbLastStableGesture = 'unknown'; // 上一个稳定手势，用于检测变化
 
 function gbClassifyGesture(landmarks) {
@@ -1278,14 +1278,17 @@ function gbClassifyGesture(landmarks) {
     if (landmarks[tips[i]].y > landmarks[pips[i]].y) folded++;
   }
 
+  // 拇指尖到食指尖的距离
   const dPinch = Math.hypot(landmarks[4].x - landmarks[8].x, landmarks[4].y - landmarks[8].y);
-  // pinch：拇指食指靠近（放宽阈值），且食指没完全弯到掌心
-  const indexTip = landmarks[8], indexMcp = landmarks[5];
-  const indexFolded = indexTip.y > indexMcp.y;
-  const isPinch = dPinch < 0.09 && !indexFolded;
-  // fist：4根手指都弯曲，且拇指食指没有捏在一起
-  const isFist = folded >= 4 && dPinch > 0.06;
-  const isOpen = folded <= 1 && dPinch > 0.1;
+  // 拇指尖到中指尖的距离（用于区分：pinch时拇食靠近但中指远离）
+  const dThumbMiddle = Math.hypot(landmarks[4].x - landmarks[12].x, landmarks[4].y - landmarks[12].y);
+
+  // pinch：拇指食指真正捏紧（<0.06） + 中指离拇指较远（>0.08，说明不是自然合拢）
+  const isPinch = dPinch < 0.06 && dThumbMiddle > 0.08;
+  // fist：4根手指都弯曲
+  const isFist = folded >= 4;
+  // open：手指全部伸直，拇食指距离远
+  const isOpen = folded <= 1 && dPinch > 0.12;
 
   if (isPinch) return 'pinch';
   if (isFist)  return 'fist';
@@ -1296,15 +1299,19 @@ function gbClassifyGesture(landmarks) {
 // 找到屏幕正中间的照片（投影到屏幕坐标，找最接近中心的）
 function gbGetCenterPhotoIndex() {
   if (photoMeshes.length === 0) return 0;
+  // 强制更新场景矩阵，确保旋转后投影准确
+  scene.updateMatrixWorld(true);
+  camera.updateMatrixWorld(true);
+  camera.updateProjectionMatrix();
+
   let minDist = Infinity, bestIdx = 0;
-  const screenCenter = new THREE.Vector2(0, 0); // NDC中心
   const worldPos = new THREE.Vector3();
   const projected = new THREE.Vector3();
   photoMeshes.forEach((mesh, idx) => {
     mesh.getWorldPosition(worldPos);
     projected.copy(worldPos).project(camera);
-    // projected.x, projected.y 是 NDC 坐标 [-1, 1]，中心是 (0,0)
-    const d = Math.hypot(projected.x, projected.y);
+    // 只关心 x 轴上谁最接近屏幕中心（照片在同一水平线上，y 差异不大）
+    const d = Math.abs(projected.x);
     if (d < minDist) { minDist = d; bestIdx = idx; }
   });
   return bestIdx;
@@ -1371,9 +1378,10 @@ function gbHandleGesture(landmarks) {
   const gesture = gbClassifyGesture(landmarks);
   gbGestureBuffer.push(gesture);
   if (gbGestureBuffer.length > GB_GESTURE_FRAMES) gbGestureBuffer.shift();
-  // 多数投票：6帧里至少5帧相同就算稳定
-  const count = gbGestureBuffer.filter(g => g === gesture).length;
-  if (count < 5) return;
+  // 严格判定：6帧全部一致才算稳定（杜绝误触）
+  if (gbGestureBuffer.length < GB_GESTURE_FRAMES) return;
+  const allSame = gbGestureBuffer.every(g => g === gesture);
+  if (!allSame) return;
 
   // 照片放大状态下，张开手掌 → 关闭照片，其他手势忽略
   if (gbPhotoZoomActive) {
