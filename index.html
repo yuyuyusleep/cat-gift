@@ -1317,7 +1317,13 @@ let gbHeartGestureFrames = 0;
 const GB_HEART_FRAMES_NEEDED = 8;
 
 function gbDetectHeartGesture(hand1, hand2) {
-  // 双手比爱心：两只手的拇指尖互相靠近 + 食指尖互相靠近
+  // 双手比爱心：必须是真正的两只手（分别在左右两侧）
+  // 用手腕(0)的x坐标判断两只手是否分开
+  const wrist1x = hand1[0].x, wrist2x = hand2[0].x;
+  const wristSeparation = Math.abs(wrist1x - wrist2x);
+  // 两只手腕必须有足够的水平间距（>0.15），排除单手被误检为双手
+  if (wristSeparation < 0.15) { gbHeartGestureFrames = 0; return; }
+
   const thumb1 = hand1[4], thumb2 = hand2[4];
   const index1 = hand1[8], index2 = hand2[8];
   
@@ -1326,12 +1332,8 @@ function gbDetectHeartGesture(hand1, hand2) {
   // 两个食指尖距离
   const indexDist = Math.hypot(index1.x - index2.x, index1.y - index2.y);
   
-  // 比心判定：拇指尖靠近 + 食指尖靠近（放宽阈值）
-  // 或者：拇指尖和对方食指尖交叉靠近（另一种比心姿势）
-  const crossDist1 = Math.hypot(thumb1.x - index2.x, thumb1.y - index2.y);
-  const crossDist2 = Math.hypot(thumb2.x - index1.x, thumb2.y - index1.y);
-  const isHeart = (thumbDist < 0.15 && indexDist < 0.15) || 
-                  (crossDist1 < 0.1 && crossDist2 < 0.1);
+  // 比心判定：拇指尖靠近 + 食指尖靠近
+  const isHeart = thumbDist < 0.12 && indexDist < 0.12;
   
   if (isHeart) {
     gbHeartGestureFrames++;
