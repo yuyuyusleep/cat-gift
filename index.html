@@ -1284,16 +1284,18 @@ function gbClassifyGesture(landmarks) {
   const dThumbMiddle = Math.hypot(landmarks[4].x - landmarks[12].x, landmarks[4].y - landmarks[12].y);
   // 手掌大小参考（手腕到中指根的距离）
   const palmSize = Math.hypot(landmarks[0].x - landmarks[9].x, landmarks[0].y - landmarks[9].y);
-
-  // pinch 判定：
-  // 1. 拇食指距离相对于手掌很小（归一化后 < 0.25）
-  // 2. 且拇食指距离明显小于拇中指距离（比值 < 0.65）
   const normalizedPinch = palmSize > 0.01 ? dPinch / palmSize : 1;
+
+  // pinch 判定：拇食指距离相对手掌很小 + 明显小于拇中指距离
   const isPinch = normalizedPinch < 0.25 && (dThumbMiddle > 0.01) && (dPinch / dThumbMiddle < 0.65);
-  // fist：4根手指都弯曲
-  const isFist = folded >= 4 && !isPinch;
-  // open：手指全部伸直，拇食指距离远（归一化）
-  const isOpen = folded <= 1 && normalizedPinch > 0.4;
+
+  // fist 判定：4根手指弯曲 + 拇指也收拢（拇指尖在食指根部附近）
+  // 额外条件：拇指尖y坐标低于中指根部（说明拇指收进来了，不是张开挥动）
+  const thumbTucked = landmarks[4].y > landmarks[9].y;
+  const isFist = folded >= 4 && thumbTucked && !isPinch;
+
+  // open：手指全部伸直
+  const isOpen = folded <= 1 && normalizedPinch > 0.35;
 
   if (isPinch) return 'pinch';
   if (isFist)  return 'fist';
@@ -1301,19 +1303,13 @@ function gbClassifyGesture(landmarks) {
   return 'unknown';
 }
 
-// 找到离手部位置最近的照片（将手部NDC坐标与照片屏幕投影对比）
-let gbLastPinchHandNDC = { x: 0, y: 0 }; // 捏合时手的屏幕位置
-
-function gbGetNearestPhotoIndex() {
+// 找到屏幕正前方中间的照片（离相机视线中心最近的）
+function gbGetCenterPhotoIndex() {
   if (photoMeshes.length === 0) return 0;
-  // 强制更新场景矩阵
+  // 强制更新场景矩阵，确保旋转后投影准确
   scene.updateMatrixWorld(true);
   camera.updateMatrixWorld(true);
   camera.updateProjectionMatrix();
-
-  // 手部位置已经是 NDC 范围 [0,1]，转换为 [-1,1]
-  const handNDCx = gbLastPinchHandNDC.x * 2 - 1;
-  const handNDCy = -(gbLastPinchHandNDC.y * 2 - 1); // y 反转
 
   let minDist = Infinity, bestIdx = 0;
   const worldPos = new THREE.Vector3();
@@ -1321,7 +1317,8 @@ function gbGetNearestPhotoIndex() {
   photoMeshes.forEach((mesh, idx) => {
     mesh.getWorldPosition(worldPos);
     projected.copy(worldPos).project(camera);
-    const d = Math.hypot(projected.x - handNDCx, projected.y - handNDCy);
+    // NDC 中 (0,0) 是屏幕正中心，找投影最接近中心的
+    const d = Math.hypot(projected.x, projected.y);
     if (d < minDist) { minDist = d; bestIdx = idx; }
   });
   return bestIdx;
@@ -1420,11 +1417,9 @@ function gbHandleGesture(landmarks) {
     if (photoMeshes.length > 0 && currentState === STATE.SCATTER) {
       gbGesturesDone.pinch = true;
       gbLastGestureTime = now;
-      // 记录捏合时手的位置，然后找最近的照片
-      gbLastPinchHandNDC.x = handPos.x;
-      gbLastPinchHandNDC.y = handPos.y;
-      const nearestIdx = gbGetNearestPhotoIndex();
-      const blessing = photoMeshes[nearestIdx].userData.blessing;
+      // 触发正前方中间的照片
+      const centerIdx = gbGetCenterPhotoIndex();
+      const blessing = photoMeshes[centerIdx].userData.blessing;
       if (blessing) {
         gbShowPhotoZoom(blessing);
       }
@@ -1491,11 +1486,11 @@ function gbAddEnvelopeMesh(blessing, idx, total) {
   const photoTex = texLoader.load(blessing.photo);
   photoTex.colorSpace = THREE.SRGBColorSpace;
 
-// 照片主体（正方形）
-const photoGeo = new THREE.PlaneGeometry(7, 7);
-const photoMat = new THREE.MeshBasicMaterial({
-map: photoTex, side: THREE.FrontSide, transparent: false
-});
+  // 照片主体（正方形）
+  const photoGeo = new THREE.PlaneGeometry(7, 7);
+  const photoMat = new THREE.MeshBasicMaterial({
+    map: photoTex, side: THREE.FrontSide, transparent: true, opacity: 0.55
+  });
   const photoPlane = new THREE.Mesh(photoGeo, photoMat);
   cardGroup.add(photoPlane);
 
