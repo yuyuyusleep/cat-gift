@@ -1270,15 +1270,12 @@ function gbClassifyGesture(landmarks) {
   const palmSize = Math.hypot(landmarks[0].x - landmarks[9].x, landmarks[0].y - landmarks[9].y);
   const normalizedPinch = palmSize > 0.01 ? dPinch / palmSize : 1;
 
-  // pinch 判定：拇食指距离相对手掌小 + 小于拇中指距离
-  // 额外：中指/无名指/小指至少2根伸直（区分pinch和fist，握拳时全弯）
-  const otherFingersExtended = 4 - folded; // 除了可能的食指弯曲外，其他伸直的手指数
-  // folded 统计的是 食指(8)、中指(12)、无名指(16)、小指(20)
-  // pinch时食指弯向拇指但中指无名指小指伸直，所以 folded <= 2
-  const isPinch = normalizedPinch < 0.3 && (dThumbMiddle > 0.01) && (dPinch / dThumbMiddle < 0.7) && folded <= 2;
+  // pinch 判定：拇食指距离相对手掌小 + 小于拇中指距离（不动这个！）
+  const isPinch = normalizedPinch < 0.3 && (dThumbMiddle > 0.01) && (dPinch / dThumbMiddle < 0.7);
 
-  // fist 判定：4根手指都弯曲（folded>=4 已确保和pinch互斥）
-  const isFist = folded >= 4;
+  // fist 判定：4根手指都弯曲 + 拇指食指也靠近（握拳时拇食指都收进掌心，距离也小）
+  // 用 normalizedPinch > 0.15 排除pinch（pinch时拇食极近，fist时拇食虽近但没那么极端）
+  const isFist = folded >= 4 && normalizedPinch > 0.15;
 
   // open：手指全部伸直
   const isOpen = folded <= 1 && normalizedPinch > 0.35;
