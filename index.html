@@ -243,12 +243,12 @@ html, body {
 
   <!-- 操作说明层 -->
   <div id="gb-ui-layer">
-    <h1>生日快乐</h1>
     <div class="gb-instructions">
       <div class="gb-gesture-item active" data-gesture="fist"><span class="gb-highlight">✊ 握拳</span> 聚合水晶塔</div>
       <div class="gb-gesture-item" data-gesture="open"><span class="gb-highlight">🖐 张开五指</span> 散开星云</div>
       <div class="gb-gesture-item" data-gesture="swipe"><span class="gb-highlight">👋 挥动手掌</span> 旋转视角</div>
       <div class="gb-gesture-item" data-gesture="pinch"><span class="gb-highlight">🤏 捏合手指</span> 查看照片</div>
+      <div class="gb-gesture-item" data-gesture="heart"><span class="gb-highlight">🫶 双手比爱心</span> 送出爱心</div>
     </div>
   </div>
 </div>
@@ -1142,12 +1142,12 @@ let gbDetectionFrameId = null;
 async function gbSetupMediaPipe() {
   try {
     const vision = await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm');
-    gbGlobalHandLandmarker = await HandLandmarker.createFromOptions(vision, {
-      baseOptions: {
-        modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
-        delegate: 'GPU'
-      },
-      runningMode: 'VIDEO', numHands: 1
+gbGlobalHandLandmarker = await HandLandmarker.createFromOptions(vision, {
+baseOptions: {
+modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
+delegate: 'GPU'
+},
+runningMode: 'VIDEO', numHands: 2
     });
     gbGlobalVideo = document.getElementById('gb-input-video');
     gbStartCamera();
@@ -1155,12 +1155,12 @@ async function gbSetupMediaPipe() {
     console.error('MediaPipe GPU 加载失败，尝试 CPU:', e);
     try {
       const vision2 = await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm');
-      gbGlobalHandLandmarker = await HandLandmarker.createFromOptions(vision2, {
-        baseOptions: {
-          modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
-          delegate: 'CPU'
-        },
-        runningMode: 'VIDEO', numHands: 1
+gbGlobalHandLandmarker = await HandLandmarker.createFromOptions(vision2, {
+baseOptions: {
+modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
+delegate: 'CPU'
+},
+runningMode: 'VIDEO', numHands: 2
       });
       gbGlobalVideo = document.getElementById('gb-input-video');
       gbStartCamera();
@@ -1229,6 +1229,10 @@ async function gbPredictWebcam() {
       const landmarks = result.landmarks[0];
       isHandPresent = true;
       gbDrawSkeleton(ctx, landmarks, canvas.width, canvas.height);
+      if (result.landmarks.length >= 2) {
+        gbDrawSkeleton(ctx, result.landmarks[1], canvas.width, canvas.height);
+        gbDetectHeartGesture(result.landmarks[0], result.landmarks[1]);
+      }
       gbHandleGesture(landmarks);
     } else {
       isHandPresent = false;
@@ -1277,16 +1281,37 @@ function gbClassifyGesture(landmarks) {
   return 'unknown';
 }
 
-// 手势完成追踪：用户完成所有手势后触发爱心便签
+// 手势完成追踪
 const gbGesturesDone = { fist: false, open: false, pinch: false };
 let gbHeartTriggered = false;
 
-function gbCheckAllGesturesDone() {
-  if (gbHeartTriggered) return;
-  if (gbGesturesDone.fist && gbGesturesDone.open && gbGesturesDone.pinch) {
-    gbHeartTriggered = true;
-    // 所有手势都体验过了，延迟2秒后播放爱心彩蛋
-    setTimeout(() => { playHeartAnimation(); }, 2000);
+// 双手比爱心检测
+let gbHeartGestureFrames = 0;
+const GB_HEART_FRAMES_NEEDED = 8;
+
+function gbDetectHeartGesture(hand1, hand2) {
+  // 双手比爱心：两只手的拇指指尖和食指指尖互相靠近形成心形
+  // 手1的拇指尖(4)接近手2的拇指尖(4)，手1的食指尖(8)接近手2的食指尖(8)
+  const thumb1 = hand1[4], thumb2 = hand2[4];
+  const index1 = hand1[8], index2 = hand2[8];
+  
+  // 两个拇指尖距离
+  const thumbDist = Math.hypot(thumb1.x - thumb2.x, thumb1.y - thumb2.y);
+  // 两个食指尖距离
+  const indexDist = Math.hypot(index1.x - index2.x, index1.y - index2.y);
+  
+  // 拇指尖互相靠近（形成心形上半部），食指尖也靠近（形成心形下部）
+  const isHeart = thumbDist < 0.12 && indexDist < 0.12;
+  
+  if (isHeart) {
+    gbHeartGestureFrames++;
+    if (gbHeartGestureFrames >= GB_HEART_FRAMES_NEEDED && !gbHeartTriggered) {
+      gbHeartTriggered = true;
+      gbHighlightGesture('heart');
+      setTimeout(() => { playHeartAnimation(); }, 500);
+    }
+  } else {
+    gbHeartGestureFrames = Math.max(0, gbHeartGestureFrames - 2);
   }
 }
 
@@ -1332,28 +1357,28 @@ function gbHandleGesture(landmarks) {
 
   if (gesture === 'pinch') {
     if (photoMeshes.length > 0 && (currentState === STATE.SCATTER || currentState === STATE.TREE)) {
-      targetState = STATE.ZOOM; currentState = STATE.ZOOM;
-      gbGesturesDone.pinch = true; gbCheckAllGesturesDone();
-      if (zoomTargetIndex === -1) {
-        let minDist = Infinity, bestIdx = 0;
-        const camPos = camera.position, worldPos = new THREE.Vector3();
-        photoMeshes.forEach((mesh, idx) => {
-          mesh.getWorldPosition(worldPos);
-          const d = worldPos.distanceTo(camPos);
-          if (d < minDist) { minDist = d; bestIdx = idx; }
-        });
-        zoomTargetIndex = bestIdx;
-      }
-      // 自动弹出最近照片的祝福
-      if (zoomTargetIndex >= 0 && photoMeshes[zoomTargetIndex].userData.blessing) {
-        setTimeout(() => { gbShowBlessing(photoMeshes[zoomTargetIndex].userData.blessing); }, 800);
+      // 找到离镜头最近的照片
+      let minDist = Infinity, bestIdx = 0;
+      const camPos = camera.position, worldPos = new THREE.Vector3();
+      photoMeshes.forEach((mesh, idx) => {
+        mesh.getWorldPosition(worldPos);
+        const d = worldPos.distanceTo(camPos);
+        if (d < minDist) { minDist = d; bestIdx = idx; }
+      });
+      gbGesturesDone.pinch = true;
+      gbHighlightGesture('pinch');
+      // 记忆回廊效果：照片放大到屏幕中央，下方显示祝福
+      const blessing = photoMeshes[bestIdx].userData.blessing;
+      if (blessing) {
+        gbShowPhotoZoom(blessing);
       }
     }
   } else if (gesture === 'fist') {
     if (currentState !== STATE.TREE) {
       currentState = STATE.TREE; zoomTargetIndex = -1;
       rotationVelocity.x = 0; rotationVelocity.y = 0;
-      gbGesturesDone.fist = true; gbCheckAllGesturesDone();
+      gbGesturesDone.fist = true;
+      gbHighlightGesture('fist');
     }
   } else if (gesture === 'open') {
     if (currentState === STATE.ZOOM) {
@@ -1361,7 +1386,8 @@ function gbHandleGesture(landmarks) {
     } else if (currentState === STATE.TREE) {
       currentState = STATE.SCATTER;
       lastHandPos.x = handPos.x; lastHandPos.y = handPos.y;
-      gbGesturesDone.open = true; gbCheckAllGesturesDone();
+      gbGesturesDone.open = true;
+      gbHighlightGesture('open');
     }
   }
 }
@@ -1493,39 +1519,84 @@ function gbOnEnvelopeClick(event) {
   }
 }
 
-function gbShowBlessing(blessing) {
+// 记忆回廊效果：照片从小到大放大到屏幕中央，下方渐显祝福语
+let gbPhotoZoomActive = false;
+
+function gbShowPhotoZoom(blessing) {
+  if (gbPhotoZoomActive) return;
+  gbPhotoZoomActive = true;
+
   // 移除已有弹窗
-  const existing = document.getElementById('gb-blessing-popup');
+  const existing = document.getElementById('gb-photo-zoom');
   if (existing) existing.remove();
 
-  const popup = document.createElement('div');
-  popup.id = 'gb-blessing-popup';
-  popup.style.cssText = `
-    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0);
-    background: linear-gradient(135deg, rgba(20,20,40,0.95), rgba(10,10,30,0.98));
-    border: 2px solid rgba(74,222,128,0.6); border-radius: 20px;
-    padding: 40px 35px; max-width: 380px; width: 85%;
-    text-align: center; z-index: 99999;
-    box-shadow: 0 0 40px rgba(74,222,128,0.3), inset 0 0 30px rgba(74,222,128,0.05);
-    backdrop-filter: blur(10px);
-    animation: gbPopIn 0.4s ease forwards;
+  const overlay = document.createElement('div');
+  overlay.id = 'gb-photo-zoom';
+  overlay.style.cssText = `
+    position: fixed; inset: 0; z-index: 99999;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0); transition: background 0.5s ease;
+    pointer-events: all; cursor: pointer;
   `;
-  popup.innerHTML = `
+  overlay.innerHTML = `
     <style>
-      @keyframes gbPopIn { to { transform: translate(-50%, -50%) scale(1); } }
-      @keyframes gbPopOut { to { transform: translate(-50%, -50%) scale(0); opacity: 0; } }
+      @keyframes photoZoomIn {
+        0% { transform: scale(0.2) rotate(-5deg); opacity: 0; }
+        60% { transform: scale(1.05) rotate(1deg); opacity: 1; }
+        100% { transform: scale(1) rotate(0deg); opacity: 1; }
+      }
+      @keyframes blessingFadeIn {
+        0% { transform: translateY(20px); opacity: 0; }
+        100% { transform: translateY(0); opacity: 1; }
+      }
+      @keyframes photoZoomOut {
+        0% { transform: scale(1); opacity: 1; }
+        100% { transform: scale(0.3); opacity: 0; }
+      }
     </style>
-    <div style="margin-bottom:15px;"><img src="${blessing.photo}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:2px solid rgba(74,222,128,0.5);" /></div>
-    <div style="color:rgba(74,222,128,0.9); font-size:14px; margin-bottom:12px; letter-spacing:2px;">来自 ${blessing.from} 的祝福</div>
-    <div style="color:rgba(255,255,255,0.9); font-size:18px; line-height:1.8; margin-bottom:25px; font-family: 'PingFang SC','Microsoft YaHei',serif;">${blessing.message}</div>
-    <div style="cursor:pointer; display:inline-block; padding:10px 30px; border:1px solid rgba(74,222,128,0.5); border-radius:25px; color:rgba(74,222,128,0.9); font-size:14px; transition:0.3s;" 
-         onmouseover="this.style.background='rgba(74,222,128,0.15)'" 
-         onmouseout="this.style.background='transparent'"
-         onclick="this.parentElement.style.animation='gbPopOut 0.3s ease forwards'; setTimeout(()=>this.parentElement.remove(),300);">
-      收下祝福 ✨
+    <div id="gb-zoom-photo" style="
+      width: 65vw; max-width: 300px; height: 65vw; max-height: 300px;
+      border-radius: 12px; overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.8), 0 0 30px rgba(74,222,128,0.2);
+      border: 2px solid rgba(255,255,255,0.15);
+      animation: photoZoomIn 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    ">
+      <img src="${blessing.photo}" style="width:100%;height:100%;object-fit:cover;" />
     </div>
+    <div id="gb-zoom-from" style="
+      margin-top: 20px; color: rgba(74,222,128,0.9); font-size: 13px;
+      letter-spacing: 3px; opacity: 0;
+      animation: blessingFadeIn 0.5s ease 0.6s forwards;
+    ">来自 ${blessing.from}</div>
+    <div id="gb-zoom-message" style="
+      margin-top: 12px; color: rgba(255,255,255,0.9); font-size: 17px;
+      line-height: 1.8; text-align: center; max-width: 320px; padding: 0 20px;
+      font-family: 'PingFang SC','Microsoft YaHei',serif;
+      opacity: 0; animation: blessingFadeIn 0.5s ease 0.9s forwards;
+    ">${blessing.message}</div>
+    <div style="
+      margin-top: 25px; color: rgba(255,255,255,0.4); font-size: 12px;
+      opacity: 0; animation: blessingFadeIn 0.5s ease 1.2s forwards;
+    ">轻触关闭</div>
   `;
-  document.body.appendChild(popup);
+
+  document.body.appendChild(overlay);
+  // 背景渐暗
+  requestAnimationFrame(() => { overlay.style.background = 'rgba(0,0,0,0.85)'; });
+
+  // 点击关闭
+  overlay.addEventListener('click', () => {
+    const photo = document.getElementById('gb-zoom-photo');
+    if (photo) photo.style.animation = 'photoZoomOut 0.4s ease forwards';
+    overlay.style.background = 'rgba(0,0,0,0)';
+    overlay.style.transition = 'background 0.3s ease';
+    setTimeout(() => { overlay.remove(); gbPhotoZoomActive = false; }, 400);
+  });
+}
+
+// 兼容旧的点击调用
+function gbShowBlessing(blessing) {
+  gbShowPhotoZoom(blessing);
 }
 
 // Three.js 延迟到 gbStartExperience 中初始化，避免页面加载时就占用 WebGL 资源
