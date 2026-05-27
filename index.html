@@ -1035,16 +1035,17 @@ function gbAnimate() {
       if (isHandPresent) {
         const deltaX = handPos.x - lastHandPos.x;
         const deltaY = handPos.y - lastHandPos.y;
-        if (Math.abs(deltaX) > 0.001) rotationVelocity.y += deltaX * 0.2;
-        if (Math.abs(deltaY) > 0.001) rotationVelocity.x += deltaY * 0.08;
+        // 忽略过大跳变（手离开后重新出现）
+        if (Math.abs(deltaX) < 0.08 && Math.abs(deltaX) > 0.001) rotationVelocity.y += deltaX * 0.5;
+        if (Math.abs(deltaY) < 0.08 && Math.abs(deltaY) > 0.001) rotationVelocity.x += deltaY * 0.15;
         lastHandPos.x = handPos.x; lastHandPos.y = handPos.y;
       }
-      rotationVelocity.y = Math.min(Math.max(rotationVelocity.y, -0.1), 0.1);
-      rotationVelocity.x = Math.min(Math.max(rotationVelocity.x, -0.05), 0.05);
+      rotationVelocity.y = Math.min(Math.max(rotationVelocity.y, -0.15), 0.15);
+      rotationVelocity.x = Math.min(Math.max(rotationVelocity.x, -0.08), 0.08);
       mainGroup.rotation.y += rotationVelocity.y;
       mainGroup.rotation.x += rotationVelocity.x;
-      rotationVelocity.y *= 0.95;
-      rotationVelocity.x *= 0.92;
+      rotationVelocity.y *= 0.92;
+      rotationVelocity.x *= 0.88;
       mainGroup.rotation.x *= 0.95;
     } else if (currentState === STATE.TREE) {
       mainGroup.rotation.y += 0.003;
@@ -1269,11 +1270,14 @@ function gbClassifyGesture(landmarks) {
   }
 
   const dPinch = Math.hypot(landmarks[4].x - landmarks[8].x, landmarks[4].y - landmarks[8].y);
-  // pinch 需要：拇指食指非常靠近 + 其余三指至少2根伸直（排除自然握拳时的误判）
-  const otherFingersExtended = (folded <= 2);
-  const isPinch = dPinch < 0.05 && otherFingersExtended;
+  // pinch 需要：拇指食指靠近 + 中/无名/小指至少有一根伸直（排除自然握拳时拇食接近的误判）
+  const middleExtended = landmarks[12].y < landmarks[10].y;
+  const ringExtended = landmarks[16].y < landmarks[14].y;
+  const pinkyExtended = landmarks[20].y < landmarks[18].y;
+  const otherFingerUp = middleExtended || ringExtended || pinkyExtended;
+  const isPinch = dPinch < 0.065 && otherFingerUp;
   const isFist = folded >= 4;
-  const isOpen = folded <= 1 && dPinch > 0.08;
+  const isOpen = folded <= 1 && dPinch > 0.07;
 
   if (isPinch) return 'pinch';
   if (isFist)  return 'fist';
