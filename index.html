@@ -1279,13 +1279,13 @@ function gbClassifyGesture(landmarks) {
   }
 
   const dPinch = Math.hypot(landmarks[4].x - landmarks[8].x, landmarks[4].y - landmarks[8].y);
-  // pinch：拇指食指靠近，且不是完全握拳（食指弯曲程度用tip和mcp比较）
+  // pinch：拇指食指靠近（放宽阈值），且食指没完全弯到掌心
   const indexTip = landmarks[8], indexMcp = landmarks[5];
-  const indexFolded = indexTip.y > indexMcp.y; // 食指完全弯下去了
-  const isPinch = dPinch < 0.07 && !indexFolded;
+  const indexFolded = indexTip.y > indexMcp.y;
+  const isPinch = dPinch < 0.09 && !indexFolded;
   // fist：4根手指都弯曲，且拇指食指没有捏在一起
-  const isFist = folded >= 4 && dPinch > 0.05;
-  const isOpen = folded <= 1 && dPinch > 0.08;
+  const isFist = folded >= 4 && dPinch > 0.06;
+  const isOpen = folded <= 1 && dPinch > 0.1;
 
   if (isPinch) return 'pinch';
   if (isFist)  return 'fist';
@@ -1293,8 +1293,23 @@ function gbClassifyGesture(landmarks) {
   return 'unknown';
 }
 
+// 找到当前正对镜头（屏幕中间）的照片
+function gbGetCenterPhotoIndex() {
+  if (photoMeshes.length === 0) return 0;
+  let minDist = Infinity, bestIdx = 0;
+  const cameraWorldPos = new THREE.Vector3();
+  camera.getWorldPosition(cameraWorldPos);
+  const worldPos = new THREE.Vector3();
+  photoMeshes.forEach((mesh, idx) => {
+    mesh.getWorldPosition(worldPos);
+    const d = worldPos.distanceTo(cameraWorldPos);
+    if (d < minDist) { minDist = d; bestIdx = idx; }
+  });
+  return bestIdx;
+}
+
 // 手势完成追踪
-let gbPinchViewIndex = 0; // pinch轮流查看照片索引
+let gbPinchViewIndex = 0; // 备用
 const gbGesturesDone = { fist: false, open: false, pinch: false };
 let gbHeartTriggered = false;
 
@@ -1384,7 +1399,9 @@ function gbHandleGesture(landmarks) {
     if (photoMeshes.length > 0 && currentState === STATE.SCATTER) {
       gbGesturesDone.pinch = true;
       gbLastGestureTime = now;
-      const blessing = photoMeshes[gbPinchViewIndex].userData.blessing;
+      // 找到正对镜头的照片（屏幕中间的那张）
+      const centerIdx = gbGetCenterPhotoIndex();
+      const blessing = photoMeshes[centerIdx].userData.blessing;
       if (blessing) {
         gbShowPhotoZoom(blessing);
       }
@@ -1611,8 +1628,6 @@ function gbClosePhotoZoom() {
   setTimeout(() => {
     overlay.remove();
     gbPhotoZoomActive = false;
-    // 关闭后切换到下一张，下次pinch看新的人
-    gbPinchViewIndex = (gbPinchViewIndex + 1) % photoMeshes.length;
     gbLastGestureTime = Date.now();
   }, 400);
 }
