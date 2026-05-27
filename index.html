@@ -631,16 +631,16 @@ function playHeartAnimation() {
 
   // 时间线（基于 12.4s 视频，逐帧校准）
   // 视频正常顺序播放，在关键节点暂停等待点击：
-  // 0→2.5s   猫咪跳进来坐好 → 暂停在2.5s（坐姿稳定）
-  // 点击 → 2.5→5.5s 猫招手+舔爪子 → 暂停在5.5s（舔爪结束定格）
-  // 点击 → 5.5→9.5s 猫打滚完整动作 → 暂停在9.5s（打滚结束）
-  // 点击 → 9.5→结束 猫起身走向礼物盒 → 进入体验
+  // 0→1.5s   猫咪跳进来坐好 → 暂停在1.5s（纯坐姿，未招手）
+  // 点击 → 1.5→5.0s 猫招手+舔爪子 → 暂停在5.0s（舔爪结束定格）
+  // 点击 → 5.0→8.5s 猫打滚完整动作 → 暂停在8.5s（仰躺四脚朝天最终帧）
+  // 点击 → 8.5→结束 猫起身走向镜头 → 进入体验
   //
   // 每个暂停帧精确说明：
-  // 2.5s = 猫坐好正面朝向镜头
-  // 5.5s = 猫舔完爪子的最终帧
-  // 9.5s = 猫打滚动作结束的最终帧
-  const PAUSE_AT = { sit: 2.5, waveEnd: 5.5, rollEnd: 9.5 };
+  // 1.5s = 猫完全坐稳，正面端坐，尚未抬爪
+  // 5.0s = 猫低头舔爪的最终帧
+  // 8.5s = 猫仰躺打滚四脚朝天的最终帧
+  const PAUSE_AT = { sit: 1.5, waveEnd: 5.0, rollEnd: 8.5 };
 
   // stage: 0=播放入场, 1=坐姿等点击, 2=播放招手中, 3=招手完等点击, 4=播放打滚中, 5=打滚完等点击, 6=播放礼物中, 7=结束
   let stage = 0;
@@ -1413,7 +1413,7 @@ function gbAddEnvelopeMesh(blessing, idx, total) {
   // 照片主体（正方形）— 降低亮度
   const photoGeo = new THREE.PlaneGeometry(7, 7);
   const photoMat = new THREE.MeshBasicMaterial({
-    map: photoTex, side: THREE.DoubleSide, transparent: true, opacity: 0.75
+    map: photoTex, side: THREE.DoubleSide, transparent: true, opacity: 0.55
   });
   const photoPlane = new THREE.Mesh(photoGeo, photoMat);
   cardGroup.add(photoPlane);
