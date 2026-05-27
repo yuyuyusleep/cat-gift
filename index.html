@@ -1270,14 +1270,13 @@ function gbClassifyGesture(landmarks) {
   }
 
   const dPinch = Math.hypot(landmarks[4].x - landmarks[8].x, landmarks[4].y - landmarks[8].y);
-  // pinch 需要：拇指食指靠近 + 中/无名/小指至少有一根伸直（排除自然握拳时拇食接近的误判）
-  const middleExtended = landmarks[12].y < landmarks[10].y;
-  const ringExtended = landmarks[16].y < landmarks[14].y;
-  const pinkyExtended = landmarks[20].y < landmarks[18].y;
-  const otherFingerUp = middleExtended || ringExtended || pinkyExtended;
-  const isPinch = dPinch < 0.07 && otherFingerUp;
-  const isFist = folded >= 4;
-  const isOpen = folded <= 1 && dPinch > 0.07;
+  // pinch：拇指食指靠近，且不是完全握拳（食指弯曲程度用tip和mcp比较）
+  const indexTip = landmarks[8], indexMcp = landmarks[5];
+  const indexFolded = indexTip.y > indexMcp.y; // 食指完全弯下去了
+  const isPinch = dPinch < 0.07 && !indexFolded;
+  // fist：4根手指都弯曲，且拇指食指没有捏在一起
+  const isFist = folded >= 4 && dPinch > 0.05;
+  const isOpen = folded <= 1 && dPinch > 0.08;
 
   if (isPinch) return 'pinch';
   if (isFist)  return 'fist';
