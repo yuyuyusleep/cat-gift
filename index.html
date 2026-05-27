@@ -1265,7 +1265,7 @@ function gbDrawSkeleton(ctx, landmarks, w, h) {
 
 // 手势防抖
 let gbGestureBuffer = [];
-const GB_GESTURE_FRAMES = 6;
+const GB_GESTURE_FRAMES = 4;
 let gbLastGestureTime = 0;
 const GB_GESTURE_COOLDOWN = 600; // 手势触发后冷却
 let gbLastStableGesture = 'unknown'; // 上一个稳定手势，用于检测变化
@@ -1286,8 +1286,8 @@ function gbClassifyGesture(landmarks) {
   const palmSize = Math.hypot(landmarks[0].x - landmarks[9].x, landmarks[0].y - landmarks[9].y);
   const normalizedPinch = palmSize > 0.01 ? dPinch / palmSize : 1;
 
-  // pinch 判定：拇食指距离相对手掌很小 + 明显小于拇中指距离
-  const isPinch = normalizedPinch < 0.25 && (dThumbMiddle > 0.01) && (dPinch / dThumbMiddle < 0.65);
+  // pinch 判定：拇食指距离相对手掌小 + 小于拇中指距离
+  const isPinch = normalizedPinch < 0.3 && (dThumbMiddle > 0.01) && (dPinch / dThumbMiddle < 0.7);
 
   // fist 判定：4根手指弯曲 + 指尖全部紧贴手掌（指尖到手腕距离 < 掌长的60%）
   // 挥动时手指可能因运动模糊被误判为折叠，但指尖不会真的靠近手腕
@@ -1340,8 +1340,7 @@ let gbHeartGestureFrames = 0;
 const GB_HEART_FRAMES_NEEDED = 8;
 
 function gbDetectHeartGesture(hand1, hand2) {
-  // 双手比爱心：两只手的拇指指尖和食指指尖互相靠近形成心形
-  // 手1的拇指尖(4)接近手2的拇指尖(4)，手1的食指尖(8)接近手2的食指尖(8)
+  // 双手比爱心：两只手的拇指尖互相靠近 + 食指尖互相靠近
   const thumb1 = hand1[4], thumb2 = hand2[4];
   const index1 = hand1[8], index2 = hand2[8];
   
@@ -1350,8 +1349,12 @@ function gbDetectHeartGesture(hand1, hand2) {
   // 两个食指尖距离
   const indexDist = Math.hypot(index1.x - index2.x, index1.y - index2.y);
   
-  // 拇指尖互相靠近（形成心形上半部），食指尖也靠近（形成心形下部）
-  const isHeart = thumbDist < 0.12 && indexDist < 0.12;
+  // 比心判定：拇指尖靠近 + 食指尖靠近（放宽阈值）
+  // 或者：拇指尖和对方食指尖交叉靠近（另一种比心姿势）
+  const crossDist1 = Math.hypot(thumb1.x - index2.x, thumb1.y - index2.y);
+  const crossDist2 = Math.hypot(thumb2.x - index1.x, thumb2.y - index1.y);
+  const isHeart = (thumbDist < 0.15 && indexDist < 0.15) || 
+                  (crossDist1 < 0.1 && crossDist2 < 0.1);
   
   if (isHeart) {
     gbHeartGestureFrames++;
@@ -1361,7 +1364,7 @@ function gbDetectHeartGesture(hand1, hand2) {
       setTimeout(() => { playHeartAnimation(); }, 500);
     }
   } else {
-    gbHeartGestureFrames = Math.max(0, gbHeartGestureFrames - 2);
+    gbHeartGestureFrames = Math.max(0, gbHeartGestureFrames - 1);
   }
 }
 
@@ -1391,10 +1394,10 @@ function gbHandleGesture(landmarks) {
   const gesture = gbClassifyGesture(landmarks);
   gbGestureBuffer.push(gesture);
   if (gbGestureBuffer.length > GB_GESTURE_FRAMES) gbGestureBuffer.shift();
-  // 稳定性判定：6帧中至少5帧相同
+  // 稳定性判定：4帧中至少3帧相同
   if (gbGestureBuffer.length < GB_GESTURE_FRAMES) return;
   const count = gbGestureBuffer.filter(g => g === gesture).length;
-  if (count < 5) return;
+  if (count < 3) return;
 
   // 照片放大状态下，张开手掌 → 关闭照片，其他手势忽略
   if (gbPhotoZoomActive) {
