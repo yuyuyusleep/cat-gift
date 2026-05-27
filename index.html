@@ -1293,16 +1293,18 @@ function gbClassifyGesture(landmarks) {
   return 'unknown';
 }
 
-// 找到当前正对镜头（屏幕中间）的照片
+// 找到屏幕正中间的照片（投影到屏幕坐标，找最接近中心的）
 function gbGetCenterPhotoIndex() {
   if (photoMeshes.length === 0) return 0;
   let minDist = Infinity, bestIdx = 0;
-  const cameraWorldPos = new THREE.Vector3();
-  camera.getWorldPosition(cameraWorldPos);
+  const screenCenter = new THREE.Vector2(0, 0); // NDC中心
   const worldPos = new THREE.Vector3();
+  const projected = new THREE.Vector3();
   photoMeshes.forEach((mesh, idx) => {
     mesh.getWorldPosition(worldPos);
-    const d = worldPos.distanceTo(cameraWorldPos);
+    projected.copy(worldPos).project(camera);
+    // projected.x, projected.y 是 NDC 坐标 [-1, 1]，中心是 (0,0)
+    const d = Math.hypot(projected.x, projected.y);
     if (d < minDist) { minDist = d; bestIdx = idx; }
   });
   return bestIdx;
