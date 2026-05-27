@@ -1273,13 +1273,13 @@ function gbClassifyGesture(landmarks) {
   // pinch 判定：拇食指距离相对手掌小 + 小于拇中指距离
   const isPinch = normalizedPinch < 0.3 && (dThumbMiddle > 0.01) && (dPinch / dThumbMiddle < 0.7);
 
-  // fist 判定：4根手指弯曲 + 指尖全部紧贴手掌（指尖到手腕距离 < 掌长的60%）
-  // 挥动时手指可能因运动模糊被误判为折叠，但指尖不会真的靠近手腕
+  // fist 判定：4根手指弯曲 + 指尖紧贴手掌（指尖到手腕距离 < 掌长的0.95）
+  // 挥动时手指被误判折叠，但指尖实际远离手腕
   let fistTight = true;
   if (folded >= 4) {
     for (let i = 0; i < 4; i++) {
       const tipDist = Math.hypot(landmarks[tips[i]].x - landmarks[0].x, landmarks[tips[i]].y - landmarks[0].y);
-      if (tipDist > palmSize * 0.75) { fistTight = false; break; }
+      if (tipDist > palmSize * 0.95) { fistTight = false; break; }
     }
   }
   const isFist = folded >= 4 && fistTight && !isPinch;
@@ -1346,6 +1346,11 @@ function gbDetectHeartGesture(hand1, hand2) {
       gbHeartTriggered = true;
       gbHighlightGesture('heart');
       setTimeout(() => { playHeartAnimation(); }, 500);
+      // 动画结束后重置，允许再次触发
+      setTimeout(() => {
+        gbHeartTriggered = false;
+        gbHeartGestureFrames = 0;
+      }, 5000);
     }
   } else {
     gbHeartGestureFrames = Math.max(0, gbHeartGestureFrames - 1);
