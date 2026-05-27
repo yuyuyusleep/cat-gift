@@ -1259,7 +1259,8 @@ function gbDrawSkeleton(ctx, landmarks, w, h) {
 let gbGestureBuffer = [];
 const GB_GESTURE_FRAMES = 6;
 let gbLastGestureTime = 0;
-const GB_GESTURE_COOLDOWN = 2000; // 手势触发后冷却2秒防误触
+const GB_GESTURE_COOLDOWN = 800; // 手势触发后短冷却
+let gbLastStableGesture = 'unknown'; // 上一个稳定手势，用于检测变化
 
 function gbClassifyGesture(landmarks) {
   const tips  = [8, 12, 16, 20];
@@ -1350,24 +1351,30 @@ function gbHandleGesture(landmarks) {
 
   // 照片放大状态下，张开手掌 → 关闭照片，其他手势忽略
   if (gbPhotoZoomActive) {
-    if (gesture === 'open') gbClosePhotoZoom();
+    if (gesture === 'open' && gbLastStableGesture !== 'open') gbClosePhotoZoom();
+    gbLastStableGesture = gesture;
     return;
   }
+
+  // 边沿触发：只有手势发生变化时才执行动作（防止重复触发）
+  const gestureChanged = (gesture !== gbLastStableGesture);
+  gbLastStableGesture = gesture;
 
   // 冷却期内不触发新动作
   const now = Date.now();
   if (now - gbLastGestureTime < GB_GESTURE_COOLDOWN) return;
 
-  // 根据当前手势高亮对应提示
+  // 高亮当前手势提示
   if (gesture === 'fist') gbHighlightGesture('fist');
   else if (gesture === 'open') gbHighlightGesture('open');
   else if (gesture === 'pinch') gbHighlightGesture('pinch');
 
+  // 只在手势变化时才触发动作
+  if (!gestureChanged) return;
+
   if (gesture === 'pinch') {
-    // 只在散开(SCATTER)状态下才能捏手查看照片
-    if (photoMeshes.length > 0 && currentState === STATE.SCATTER && !gbPhotoZoomActive) {
+    if (photoMeshes.length > 0 && currentState === STATE.SCATTER) {
       gbGesturesDone.pinch = true;
-      gbHighlightGesture('pinch');
       gbLastGestureTime = now;
       const blessing = photoMeshes[gbPinchViewIndex].userData.blessing;
       if (blessing) {
@@ -1379,7 +1386,6 @@ function gbHandleGesture(landmarks) {
       currentState = STATE.TREE; zoomTargetIndex = -1;
       rotationVelocity.x = 0; rotationVelocity.y = 0;
       gbGesturesDone.fist = true;
-      gbHighlightGesture('fist');
       gbLastGestureTime = now;
     }
   } else if (gesture === 'open') {
@@ -1389,8 +1395,6 @@ function gbHandleGesture(landmarks) {
       currentState = STATE.SCATTER;
       lastHandPos.x = handPos.x; lastHandPos.y = handPos.y;
       gbGesturesDone.open = true;
-      gbHighlightGesture('open');
-      // 不设冷却，散开后可以立即 pinch 查看照片
     }
   }
 }
