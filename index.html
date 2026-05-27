@@ -1257,7 +1257,7 @@ function gbDrawSkeleton(ctx, landmarks, w, h) {
 
 // 手势防抖
 let gbGestureBuffer = [];
-const GB_GESTURE_FRAMES = 12;
+const GB_GESTURE_FRAMES = 6;
 let gbLastGestureTime = 0;
 const GB_GESTURE_COOLDOWN = 2000; // 手势触发后冷却2秒防误触
 
@@ -1275,7 +1275,7 @@ function gbClassifyGesture(landmarks) {
   const ringExtended = landmarks[16].y < landmarks[14].y;
   const pinkyExtended = landmarks[20].y < landmarks[18].y;
   const otherFingerUp = middleExtended || ringExtended || pinkyExtended;
-  const isPinch = dPinch < 0.065 && otherFingerUp;
+  const isPinch = dPinch < 0.07 && otherFingerUp;
   const isFist = folded >= 4;
   const isOpen = folded <= 1 && dPinch > 0.07;
 
@@ -1394,13 +1394,12 @@ function gbHandleGesture(landmarks) {
   } else if (gesture === 'open') {
     if (currentState === STATE.ZOOM) {
       currentState = STATE.SCATTER; zoomTargetIndex = -1;
-      gbLastGestureTime = now;
     } else if (currentState === STATE.TREE) {
       currentState = STATE.SCATTER;
       lastHandPos.x = handPos.x; lastHandPos.y = handPos.y;
       gbGesturesDone.open = true;
       gbHighlightGesture('open');
-      gbLastGestureTime = now;
+      // 不设冷却，散开后可以立即 pinch 查看照片
     }
   }
 }
