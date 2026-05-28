@@ -261,10 +261,25 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { FilesetResolver, HandLandmarker } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0';
 import TWEEN from 'https://cdn.jsdelivr.net/npm/@tweenjs/tween.js@18.6.4/dist/tween.esm.js';
 
-// ── 配置 ──
+// ── 性能检测 ──
+const gbPerf = (() => {
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  const cores = navigator.hardwareConcurrency || 2;
+  const mem = navigator.deviceMemory || 4; // GB, 部分浏览器支持
+  // 低配判定：移动端、或核心数<=4、或内存<=4G
+  const isLow = isMobile || cores <= 4 || mem <= 4;
+  const scale = isLow ? 0.5 : 1.0;
+  return { isMobile, isLow, scale };
+})();
+
+// ── 配置（根据设备性能自动调整）──
 const CONFIG = {
-  goldCount: 800, silverCount: 600, gemCount: 600, emeraldCount: 400, dustCount: 2000,
-  snowCount: 3000,
+  goldCount: Math.round(800 * gbPerf.scale),
+  silverCount: Math.round(600 * gbPerf.scale),
+  gemCount: Math.round(600 * gbPerf.scale),
+  emeraldCount: Math.round(400 * gbPerf.scale),
+  dustCount: Math.round(2000 * gbPerf.scale),
+  snowCount: Math.round(3000 * gbPerf.scale),
   tiers: [
     { radius: 25, height: 18, yBottom: -27 },
     { radius: 18, height: 15, yBottom: -9 },
@@ -488,9 +503,10 @@ function gbInitThree() {
     camera = new THREE.PerspectiveCamera(50, dims.width/dims.height, 0.1, 5000);
     camera.position.set(0, 0, 350);
 
-    renderer = new THREE.WebGLRenderer({ antialias: window.devicePixelRatio < 2, powerPreference: 'high-performance', alpha: true });
+    const maxDPR = gbPerf.isLow ? 1 : Math.min(window.devicePixelRatio, 2);
+    renderer = new THREE.WebGLRenderer({ antialias: !gbPerf.isLow && window.devicePixelRatio < 2, powerPreference: 'high-performance', alpha: true });
     renderer.setSize(dims.width, dims.height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setPixelRatio(maxDPR);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.0;
     container.appendChild(renderer.domElement);
@@ -505,8 +521,9 @@ function gbInitThree() {
     fillLight.position.set(-50,20,50); scene.add(fillLight);
 
     const renderScene = new RenderPass(scene, camera);
-    const bloomPass = new UnrealBloomPass(new THREE.Vector2(dims.width, dims.height), 1.5, 0.4, 0.85);
-    bloomPass.threshold=0.8; bloomPass.strength=1.0; bloomPass.radius=0.8;
+    const bloomRes = gbPerf.isLow ? 0.5 : 1.0;
+    const bloomPass = new UnrealBloomPass(new THREE.Vector2(dims.width * bloomRes, dims.height * bloomRes), 1.5, 0.4, 0.85);
+    bloomPass.threshold=0.8; bloomPass.strength= gbPerf.isLow ? 0.7 : 1.0; bloomPass.radius=0.8;
     composer = new EffectComposer(renderer);
     composer.addPass(renderScene);
     composer.addPass(bloomPass);
@@ -837,7 +854,8 @@ function gbFinishIntro() {
   setTimeout(() => { vid.classList.add('active'); }, 100);
 
   createHeaderText();
-  setTimeout(() => { gbSetupMediaPipe(); }, 500);
+  // 延迟启动手势检测，让蛋糕动画先流畅渲染
+  setTimeout(() => { gbSetupMediaPipe(); }, gbPerf.isLow ? 3000 : 1000);
 }
 
 // ── 雪 ──
@@ -985,7 +1003,8 @@ function createDust() {
 function createStarField() {
   const geo = new THREE.BufferGeometry();
   const pos = [];
-  for (let i=0; i<800; i++) pos.push((Math.random()-0.5)*1000,(Math.random()-0.5)*1000,(Math.random()-0.5)*1000);
+  const starCount = gbPerf.isLow ? 400 : 800;
+  for (let i=0; i<starCount; i++) pos.push((Math.random()-0.5)*1000,(Math.random()-0.5)*1000,(Math.random()-0.5)*1000);
   geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   scene.add(new THREE.Points(geo, new THREE.PointsMaterial({color: 0xaaccff, size: 1.5, transparent: true, opacity: 0.4})));
 }
@@ -1210,7 +1229,8 @@ async function gbPredictWebcam() {
     gbDetectionFrameId = requestAnimationFrame(gbPredictWebcam); return;
   }
   const startTimeMs = performance.now();
-  if (startTimeMs - gbLastPredictionTime < 50) { gbDetectionFrameId = requestAnimationFrame(gbPredictWebcam); return; }
+  const detectInterval = gbPerf.isLow ? 100 : 50;
+  if (startTimeMs - gbLastPredictionTime < detectInterval) { gbDetectionFrameId = requestAnimationFrame(gbPredictWebcam); return; }
   gbLastPredictionTime = startTimeMs;
   try {
     const result = gbGlobalHandLandmarker.detectForVideo(gbGlobalVideo, startTimeMs);
