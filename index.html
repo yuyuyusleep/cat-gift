@@ -770,12 +770,6 @@ window.gbStartExperience = function() {
     document.getElementById('gb-music-btn').style.borderColor = '#00ff00';
   }).catch(()=>{});
 
-  // 预加载照片图片（在粒子倒计时期间提前下载，避免蛋糕出现时才加载）
-  for (let i = 1; i <= 8; i++) {
-    const img = new Image();
-    img.src = 'photo-' + i + '.png';
-  }
-
   // 在用户点击时立即请求摄像头权限（Safari 要求用户手势触发）
   if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
     navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } } })
@@ -1136,41 +1130,40 @@ let gbGlobalVideo = null;
 let gbDetectionFrameId = null;
 
 async function gbSetupMediaPipe() {
-  // 先立即开启摄像头显示画面，不等模型加载
-  gbGlobalVideo = document.getElementById('gb-input-video');
-  gbStartCamera();
-
-  // 并行加载 MediaPipe 模型
   try {
     const vision = await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm');
-    gbGlobalHandLandmarker = await HandLandmarker.createFromOptions(vision, {
-      baseOptions: {
-        modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
-        delegate: 'GPU'
-      },
-      runningMode: 'VIDEO', numHands: 2,
-      minHandDetectionConfidence: 0.7,
-      minHandPresenceConfidence: 0.7,
-      minTrackingConfidence: 0.6
+gbGlobalHandLandmarker = await HandLandmarker.createFromOptions(vision, {
+baseOptions: {
+modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
+delegate: 'GPU'
+},
+runningMode: 'VIDEO', numHands: 2,
+minHandDetectionConfidence: 0.7,
+minHandPresenceConfidence: 0.7,
+minTrackingConfidence: 0.6
     });
-    console.log('MediaPipe GPU 模型加载完成');
+    gbGlobalVideo = document.getElementById('gb-input-video');
+    gbStartCamera();
   } catch(e) {
     console.error('MediaPipe GPU 加载失败，尝试 CPU:', e);
     try {
       const vision2 = await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm');
-      gbGlobalHandLandmarker = await HandLandmarker.createFromOptions(vision2, {
-        baseOptions: {
-          modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
-          delegate: 'CPU'
-        },
-        runningMode: 'VIDEO', numHands: 2,
-        minHandDetectionConfidence: 0.7,
-        minHandPresenceConfidence: 0.7,
-        minTrackingConfidence: 0.6
+gbGlobalHandLandmarker = await HandLandmarker.createFromOptions(vision2, {
+baseOptions: {
+modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
+delegate: 'CPU'
+},
+runningMode: 'VIDEO', numHands: 2,
+minHandDetectionConfidence: 0.7,
+minHandPresenceConfidence: 0.7,
+minTrackingConfidence: 0.6
       });
-      console.log('MediaPipe CPU 模型加载完成');
+      gbGlobalVideo = document.getElementById('gb-input-video');
+      gbStartCamera();
     } catch(e2) {
       console.error('MediaPipe CPU 降级也失败:', e2);
+      gbGlobalVideo = document.getElementById('gb-input-video');
+      gbStartCamera();
     }
   }
 }
