@@ -225,7 +225,7 @@ html, body {
   <!-- 开始屏幕 -->
 <div id="gb-start-screen">
   <div id="cat-video-wrapper">
-    <video id="cat-video" src="cat-video-new.mp4" muted playsinline></video>
+    <video id="cat-video" src="cat-video-new.mp4" muted playsinline style="visibility:hidden"></video>
     <div id="cat-video-hint">点击 <span class="hint-action">小猫咪</span> 开始体验</div>
     <div id="cat-click-hint"><span class="hint-emoji">🐾</span>用逗猫棒戳戳它~</div>
   </div>
@@ -698,6 +698,10 @@ function playHeartAnimation() {
   video.addEventListener('loadeddata', function() {
     video.currentTime = PAUSE_AT.sit;
     video.pause();
+  });
+  video.addEventListener('seeked', function onSeek() {
+    video.removeEventListener('seeked', onSeek);
+    video.style.visibility = 'visible';
     hint.style.opacity = '0';
     showClickHint('🐾 用逗猫棒戳戳它~');
   });
