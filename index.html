@@ -581,7 +581,13 @@ function playHeartAnimation() {
     note.style.left = px + 'px';
     note.style.top = py + 'px';
     note.style.backgroundColor = heartColors[Math.floor(Math.random() * heartColors.length)];
-    note.textContent = heartTips[Math.floor(Math.random() * heartTips.length)];
+    // 最后一个便签固定文案
+    if (idx === points.length - 1) {
+      note.textContent = '内容营销组敬上';
+      note.style.fontWeight = 'bold';
+    } else {
+      note.textContent = heartTips[Math.floor(Math.random() * heartTips.length)];
+    }
     layer.appendChild(note);
     notes.push(note);
     idx++;
@@ -595,17 +601,6 @@ function playHeartAnimation() {
     let i = 0;
     function addScatter() {
       if (i >= total) {
-        // 最后一张固定文案，居中显示
-        const finalNote = document.createElement('div');
-        finalNote.className = 'heart-note-scatter';
-        finalNote.style.left = (sw / 2 - 75) + 'px';
-        finalNote.style.top = (sh / 2 - 20) + 'px';
-        finalNote.style.backgroundColor = 'lightpink';
-        finalNote.style.fontWeight = 'bold';
-        finalNote.style.fontSize = '14px';
-        finalNote.textContent = '内容营销组敬上';
-        layer.appendChild(finalNote);
-
         // 铺满完成，3秒后全部消失
         setTimeout(() => {
           layer.querySelectorAll('.heart-note-scatter').forEach(n => {
