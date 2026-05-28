@@ -141,14 +141,9 @@ html, body {
 #cat-click-hint.visible { opacity: 1; }
 #cat-click-hint .hint-emoji { font-size: 1.1rem; margin-right: 4px; }
 #cat-video {
-width: 100%; height: 100%;
-object-fit: contain;
-display: block;
-opacity: 0;
-transition: opacity 0.3s;
-}
-#cat-video.ready {
-opacity: 1;
+  width: 100%; height: 100%;
+  object-fit: contain;
+  display: block;
 }
 #cat-video-hint {
   position: absolute; bottom: -36px; left: 0; right: 0;
@@ -700,14 +695,15 @@ function playHeartAnimation() {
   video.addEventListener('play', startWatching);
 
   // 直接定格到坐姿帧，不播放入场动画
+  // 先隐藏视频避免 Safari 闪现第0帧跳跃动画
+  video.style.visibility = 'hidden';
   video.addEventListener('loadeddata', function() {
     video.currentTime = PAUSE_AT.sit;
     video.pause();
   });
-  // 跳转完成后再显示视频（避免 Safari 闪现第0帧跳跃动画）
   video.addEventListener('seeked', function onFirstSeek() {
     video.removeEventListener('seeked', onFirstSeek);
-    video.classList.add('ready');
+    video.style.visibility = 'visible';
     hint.style.opacity = '0';
     showClickHint('🐾 用逗猫棒戳戳它~');
   });
