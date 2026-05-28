@@ -108,7 +108,7 @@ html, body {
   display: flex; flex-direction: column; justify-content: center; align-items: center;
   z-index: 50; background: #000;
   transition: opacity 1.2s ease-out;
-  cursor: url('cursor-cat-teaser.png') 0 0, pointer;
+  cursor: pointer;
 }
 #gb-file-input { display: none; }
 
@@ -118,7 +118,7 @@ html, body {
   width: 40vw; max-width: 240px;
   aspect-ratio: 1/1;
   overflow: visible;
-  cursor: inherit;
+  cursor: pointer;
   transition: transform 0.3s;
 }
 #cat-video-wrapper:hover {
@@ -227,7 +227,7 @@ html, body {
   <div id="cat-video-wrapper">
     <video id="cat-video" src="cat-video-new.mp4" muted playsinline style="visibility:hidden"></video>
     <div id="cat-video-hint">点击 <span class="hint-action">小猫咪</span> 开始体验</div>
-    <div id="cat-click-hint"><span class="hint-emoji">🐾</span>用逗猫棒戳戳它~</div>
+    <div id="cat-click-hint"><span class="hint-emoji">🐾</span>点击小猫咪~</div>
   </div>
   <input type="file" id="gb-file-input" multiple accept="image/*">
 </div>
@@ -623,7 +623,7 @@ function playHeartAnimation() {
   addHeartNote();
 }
 
-// ── 猫咪视频交互（逗猫棒 3 阶段点击）──
+// ── 猫咪视频交互（3 阶段点击）──
 (function initCatVideo() {
   const wrapper = document.getElementById('cat-video-wrapper');
   const video = document.getElementById('cat-video');
@@ -706,7 +706,7 @@ function playHeartAnimation() {
     video.removeEventListener('seeked', onSeek);
     video.style.visibility = 'visible';
     hint.style.opacity = '0';
-    showClickHint('🐾 用逗猫棒戳戳它~');
+    showClickHint('🐾 点击小猫咪~');
   });
   // 设置初始时间
   video.load();
