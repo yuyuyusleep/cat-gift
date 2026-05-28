@@ -595,6 +595,17 @@ function playHeartAnimation() {
     let i = 0;
     function addScatter() {
       if (i >= total) {
+        // 最后一张固定文案，居中显示
+        const finalNote = document.createElement('div');
+        finalNote.className = 'heart-note-scatter';
+        finalNote.style.left = (sw / 2 - 75) + 'px';
+        finalNote.style.top = (sh / 2 - 20) + 'px';
+        finalNote.style.backgroundColor = 'lightpink';
+        finalNote.style.fontWeight = 'bold';
+        finalNote.style.fontSize = '14px';
+        finalNote.textContent = '内容营销组敬上';
+        layer.appendChild(finalNote);
+
         // 铺满完成，3秒后全部消失
         setTimeout(() => {
           layer.querySelectorAll('.heart-note-scatter').forEach(n => {
